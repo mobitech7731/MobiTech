@@ -7,13 +7,13 @@ const collections = [
     id: 'featured',
     title: 'Featured\nCollection',
     description: 'Premium Mobile Accessories\nfor your everyday setup.',
-    image: 'https://images.unsplash.com/photo-1611186871348-b1ce696e52c9?q=80&w=1000&auto=format&fit=crop&bg=transparent',
-    fallbackImage: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/IPhone_13_Pro_Max_-_Sierra_Blue_-_Portrait.png/400px-IPhone_13_Pro_Max_-_Sierra_Blue_-_Portrait.png',
-    className: 'md:row-span-2 bg-[#12362f]',
-    titleClass: 'text-3xl lg:text-4xl font-bold mb-4 text-white',
-    descClass: 'text-sm text-white/80',
-    imageClass: 'absolute -bottom-10 -right-5 w-[85%] max-w-[280px] object-contain drop-shadow-2xl',
-    padClass: 'p-8',
+    image: '/images/collections/featured-collection-cropped.png',
+    className: 'row-span-2 bg-[#12362f]',
+    titleClass: 'text-3xl sm:text-[34px] lg:text-4xl font-bold leading-tight mb-3 text-white',
+    descClass: 'text-sm sm:text-base text-white/80 max-w-[240px]',
+    imageClass: 'absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 w-[92%] max-w-[390px] object-contain drop-shadow-2xl',
+    padClass: 'p-7 sm:p-8',
+    hideArrow: true,
     to: '/shop',
   },
   {
@@ -107,21 +107,20 @@ export function FeaturedCollections() {
                   )}
                   
                   {/* Arrow Button */}
-                  <div className="mt-auto">
-                    <span aria-label={`View ${item.title.replace('\n', ' ')}`} className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/10 group-hover:bg-white/20 backdrop-blur-sm transition-colors text-white">
-                      <ChevronRight size={16} strokeWidth={2} />
-                    </span>
-                  </div>
+                  {!item.hideArrow && (
+                    <div className="mt-auto">
+                      <span aria-label={`View ${item.title.replace('\n', ' ')}`} className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/10 group-hover:bg-white/20 backdrop-blur-sm transition-colors text-white">
+                        <ChevronRight size={16} strokeWidth={2} />
+                      </span>
+                    </div>
+                  )}
                 </div>
                 
                 <img 
-                  src={item.fallbackImage || item.image} 
+                  src={item.image} 
                   alt={`${item.title.replace('\n', ' ')} artwork`} 
-                  className={`z-0 transition-transform duration-700 ease-out group-hover:scale-110 ${item.imageClass}`}
+                  className={`z-0 transition-transform duration-700 ease-out group-hover:scale-105 ${item.imageClass}`}
                   loading="lazy"
-                  onError={() => {
-                     // If primary fails, keep fallback (already set to fallbackImage if provided)
-                  }}
                 />
               </div>
             </Link>
