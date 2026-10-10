@@ -211,7 +211,9 @@ export default function AdminProducts() {
                       ? product.category.name 
                       : String(product.category);
 
-                    const imageSrc = product.images?.[0] || '/images/admin/product-placeholder.svg';
+                    const imageSrc = product.images && product.images.length > 0
+                      ? (typeof product.images[0] === 'string' ? product.images[0] : (product.images[0] as any).url)
+                      : '/images/admin/product-placeholder.svg';
 
                     return (
                       <tr key={product._id} className="hover:bg-soft-ivory/20 transition-colors group">
@@ -304,7 +306,9 @@ export default function AdminProducts() {
                   ? product.category.name 
                   : String(product.category);
 
-                const imageSrc = product.images?.[0] || '/images/admin/product-placeholder.svg';
+                  const imageSrc = product.images && product.images.length > 0
+                    ? (typeof product.images[0] === 'string' ? product.images[0] : (product.images[0] as any).url)
+                    : '/images/admin/product-placeholder.svg';
 
                 return (
                   <div key={product._id} className="p-4 bg-white flex flex-col gap-4">

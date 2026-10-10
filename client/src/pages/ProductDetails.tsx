@@ -9,6 +9,7 @@ import { formatPrice } from '../utils/formatCurrency';
 import { useCartStore } from '../store/cartStore';
 import { Minus, Plus, MessageCircle, ChevronRight, ShoppingCart, Check, Loader2 } from 'lucide-react';
 import { useProduct, useProducts } from '../hooks/useProducts';
+import { Morph } from 'cube-motion/react';
 
 export default function ProductDetails() {
   const { id } = useParams<{ id: string }>();
@@ -167,21 +168,25 @@ export default function ProductDetails() {
                   {/* Add to Cart */}
                   <Button 
                     variant="primary" 
-                    className="flex-grow h-14 text-base tracking-wide flex items-center justify-center gap-2"
+                    className="flex-grow h-14 text-base tracking-wide flex items-center justify-center overflow-hidden"
                     disabled={!product.inStock}
                     onClick={handleAddToCart}
                   >
-                    {addedToCart ? (
-                      <>
-                        <Check size={20} />
-                        Added to Cart
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart size={20} />
-                        {product.inStock ? 'Add to Cart' : 'Sold Out'}
-                      </>
-                    )}
+                    <Morph 
+                      active={addedToCart}
+                      off={
+                        <div className="flex items-center gap-2">
+                          <ShoppingCart size={20} />
+                          <span>{product.inStock ? 'Add to Cart' : 'Sold Out'}</span>
+                        </div>
+                      }
+                      on={
+                        <div className="flex items-center gap-2">
+                          <Check size={20} />
+                          <span>Added to Cart</span>
+                        </div>
+                      }
+                    />
                   </Button>
                 </div>
 

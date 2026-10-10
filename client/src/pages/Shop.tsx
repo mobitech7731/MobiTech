@@ -33,11 +33,54 @@ export default function Shop() {
   const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sortOption, setSortOption] = useState('featured');
-  const [page, setPage] = useState(1);
+
   
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Drag to scroll state
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [hasDragged, setHasDragged] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    setIsDragging(true);
+    setHasDragged(false);
+    setStartX(e.pageX - scrollRef.current.offsetLeft);
+    setScrollLeft(scrollRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    if (Math.abs(walk) > 5) {
+      setHasDragged(true);
+    }
+    scrollRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleCategoryClick = (catId: string, e: React.MouseEvent) => {
+    if (hasDragged) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    handleCategoryChange(catId);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -58,34 +101,67 @@ export default function Shop() {
     return [defaultCat, ...apiCats];
   }, [categories]);
 
+  const activeFilterCount = (currentCategory !== 'all' ? 1 : 0) + selectedPriceRanges.length + (inStockOnly ? 1 : 0);
+  const pageParam = Math.max(1, parseInt(searchParams.get('page') || '1'));
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      if (mobile !== isMobile) {
+        setIsMobile(mobile);
+        // Reset to page 1 on layout shift to prevent missing items
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set('page', '1');
+        setSearchParams(newParams, { replace: true, state: { preventScrollReset: true } });
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobile, searchParams, setSearchParams]);
+
+  const limit = isMobile ? 10 : 20;
+
+  // Build priceRanges string
+  const priceRangesQuery = selectedPriceRanges.length > 0 
+    ? selectedPriceRanges.map(id => {
+        const r = PRICE_RANGES.find(pr => pr.id === id);
+        return `${r?.min}-${r?.max}`;
+      }).join(',')
+    : undefined;
+
+  const productListRef = useRef<HTMLDivElement>(null);
+
   // Fetch Products
   const { data: paginatedData, isLoading: isLoadingProducts, isError } = useProducts({
     search: currentSearch || undefined,
     category: currentCategory !== 'all' ? currentCategory : undefined,
     sort: sortOption !== 'featured' ? sortOption : undefined,
     inStock: inStockOnly || undefined,
-    page,
-    limit: 50, // High limit to accommodate local price filtering for now
+    priceRanges: priceRangesQuery,
+    page: pageParam,
+    limit,
   });
 
-  // Local Price Filtering (since backend does not support price ranges yet)
-  const filteredProducts = useMemo(() => {
-    let result = paginatedData?.products || [];
+  const filteredProducts = paginatedData?.products || [];
+  const totalPages = paginatedData?.pagination.totalPages || 1;
 
-    if (selectedPriceRanges.length > 0) {
-      result = result.filter(p => {
-        return selectedPriceRanges.some(rangeId => {
-          const range = PRICE_RANGES.find(r => r.id === rangeId);
-          if (!range) return false;
-          return p.price >= range.min && p.price <= range.max;
-        });
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages || newPage === pageParam) return;
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('page', newPage.toString());
+    setSearchParams(newParams, { replace: true, state: { preventScrollReset: true } });
+    
+    if (productListRef.current) {
+      const navbarHeight = 120;
+      const elementPosition = productListRef.current.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({
+        top: elementPosition - navbarHeight,
+        behavior: 'smooth'
       });
     }
-
-    return result;
-  }, [paginatedData?.products, selectedPriceRanges]);
-
-  const activeFilterCount = (currentCategory !== 'all' ? 1 : 0) + selectedPriceRanges.length + (inStockOnly ? 1 : 0);
+  };
 
   const handleCategoryChange = (catId: string) => {
     const newParams = new URLSearchParams(searchParams);
@@ -94,15 +170,23 @@ export default function Shop() {
     } else {
       newParams.set('category', catId);
     }
-    setSearchParams(newParams, { replace: true });
-    setPage(1);
+    newParams.set('page', '1');
+    setSearchParams(newParams, { replace: true, state: { preventScrollReset: true } });
   };
 
   const clearSearch = () => {
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('search');
-    setSearchParams(newParams, { replace: true });
-    setPage(1);
+    newParams.set('page', '1');
+    setSearchParams(newParams, { replace: true, state: { preventScrollReset: true } });
+  };
+
+  const resetPage = () => {
+    const newParams = new URLSearchParams(searchParams);
+    if (newParams.get('page') !== '1') {
+      newParams.set('page', '1');
+      setSearchParams(newParams, { replace: true, state: { preventScrollReset: true } });
+    }
   };
 
   const togglePriceRange = (rangeId: string) => {
@@ -111,17 +195,18 @@ export default function Shop() {
         ? prev.filter(id => id !== rangeId)
         : [...prev, rangeId]
     );
+    resetPage();
   };
 
   const clearAllFilters = () => {
     const newParams = new URLSearchParams(searchParams);
     newParams.delete('category');
-    setSearchParams(newParams, { replace: true });
+    newParams.set('page', '1');
+    setSearchParams(newParams, { replace: true, state: { preventScrollReset: true } });
     
     setSelectedPriceRanges([]);
     setInStockOnly(false);
     setSortOption('featured');
-    setPage(1);
   };
 
   const FilterSidebar = () => (
@@ -190,7 +275,7 @@ export default function Shop() {
               checked={inStockOnly}
               onChange={(e) => {
                 setInStockOnly(e.target.checked);
-                setPage(1);
+                resetPage();
               }}
               className="opacity-0 absolute inset-0 cursor-pointer m-0 p-0 w-full h-full" 
             />
@@ -258,12 +343,34 @@ export default function Shop() {
           </div>
 
           {/* Horizontal Category Nav */}
-          <div className="flex overflow-x-auto hide-scrollbar gap-3 mb-10 pb-4 border-b border-light-neutral/30">
-            <style>{`.hide-scrollbar::-webkit-scrollbar { display: none; }`}</style>
+          <div 
+            ref={scrollRef}
+            onMouseDown={handleMouseDown}
+            onMouseLeave={handleMouseLeave}
+            onMouseUp={handleMouseUp}
+            onMouseMove={handleMouseMove}
+            className={`flex overflow-x-auto gap-3 mb-10 pb-4 border-b border-light-neutral/30 custom-scrollbar select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          >
+            <style>{`
+              .custom-scrollbar::-webkit-scrollbar {
+                height: 6px;
+              }
+              .custom-scrollbar::-webkit-scrollbar-track {
+                background: rgba(0,0,0,0.02);
+                border-radius: 4px;
+              }
+              .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: rgba(20, 83, 86, 0.2);
+                border-radius: 4px;
+              }
+              .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: rgba(20, 83, 86, 0.4);
+              }
+            `}</style>
             {formattedCategories.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => handleCategoryChange(cat.id)}
+                onClick={(e) => handleCategoryClick(cat.id, e)}
                 className={`px-6 py-2.5 rounded-full whitespace-nowrap text-sm font-semibold transition-all duration-200 ease-out ${
                   currentCategory === cat.id 
                     ? 'bg-gradient-to-r from-primary-dark-teal to-secondary-teal text-white shadow-md hover:shadow-lg hover:-translate-y-[1px]' 
@@ -275,14 +382,14 @@ export default function Shop() {
             ))}
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-10">
+          <div className="flex flex-col lg:flex-row gap-10" ref={productListRef}>
             {/* Desktop Sidebar */}
             <aside className="hidden lg:block w-64 flex-shrink-0">
               <FilterSidebar />
             </aside>
 
             {/* Main Content */}
-            <div className="flex-grow">
+            <div className="flex-grow pb-24 md:pb-0 relative">
               {/* Toolbar */}
               <div className="flex flex-wrap items-center justify-between gap-4 mb-8 pb-4 border-b border-light-neutral/50">
                 <div className="flex items-center gap-4">
@@ -329,7 +436,7 @@ export default function Shop() {
                             <button
                               onClick={() => {
                                 setSortOption(option.value);
-                                setPage(1);
+                                resetPage();
                                 setIsSortDropdownOpen(false);
                               }}
                               className={`w-full text-left px-4 py-2 text-sm transition-colors ${
@@ -350,7 +457,7 @@ export default function Shop() {
                       value={sortOption}
                       onChange={(e) => {
                         setSortOption(e.target.value);
-                        setPage(1);
+                        resetPage();
                       }}
                       className="sr-only"
                       aria-label="Sort products by"
@@ -396,7 +503,7 @@ export default function Shop() {
                       In Stock Only
                       <button onClick={() => {
                         setInStockOnly(false);
-                        setPage(1);
+                        resetPage();
                       }} className="ml-1 hover:text-red-500">
                         <X size={12} />
                       </button>
@@ -428,7 +535,7 @@ export default function Shop() {
                   </Button>
                 </div>
               ) : filteredProducts.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:gap-8">
                   {filteredProducts.map(product => (
                     <ProductCard key={product.id} product={product} />
                   ))}
@@ -453,33 +560,61 @@ export default function Shop() {
               )}
 
               {/* Pagination */}
-              {paginatedData && paginatedData.pagination.totalPages > 1 && (
-                <div className="mt-20 flex justify-center items-center gap-6">
-                  <button 
-                    disabled={page === 1}
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${page === 1 ? 'opacity-50 cursor-not-allowed border border-light-neutral text-primary-dark/50' : 'border border-primary-dark-teal/30 text-primary-dark hover:bg-primary-dark-teal/10 hover:border-primary-dark-teal/60 hover:-translate-y-[1px]'}`}
-                    aria-label="Previous page"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                  </button>
-                  <div className="flex items-center gap-3">
-                    <div className="px-4 py-1.5 rounded-full bg-gradient-to-r from-primary-dark-teal to-secondary-teal text-white text-sm font-bold shadow-md">
-                      {page}
+              {paginatedData && totalPages > 1 && (
+                <>
+                  {/* Desktop Pagination */}
+                  <div className="hidden md:flex mt-20 justify-center items-center gap-6">
+                    <button 
+                      disabled={pageParam === 1}
+                      onClick={() => handlePageChange(pageParam - 1)}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${pageParam === 1 ? 'opacity-50 cursor-not-allowed border border-light-neutral text-primary-dark/50' : 'border border-primary-dark-teal/30 text-primary-dark hover:bg-primary-dark-teal/10 hover:border-primary-dark-teal/60 hover:-translate-y-[1px]'}`}
+                      aria-label="Previous page"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <div className="px-4 py-1.5 rounded-full bg-gradient-to-r from-primary-dark-teal to-secondary-teal text-white text-sm font-bold shadow-md">
+                        {pageParam}
+                      </div>
+                      <span className="text-sm font-semibold text-primary-dark/50 uppercase tracking-widest">
+                        of {totalPages}
+                      </span>
                     </div>
-                    <span className="text-sm font-semibold text-primary-dark/50 uppercase tracking-widest">
-                      of {paginatedData.pagination.totalPages}
-                    </span>
+                    <button 
+                      disabled={pageParam === totalPages}
+                      onClick={() => handlePageChange(pageParam + 1)}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${pageParam === totalPages ? 'opacity-50 cursor-not-allowed border border-light-neutral text-primary-dark/50' : 'border border-primary-dark-teal/30 text-primary-dark hover:bg-primary-dark-teal/10 hover:border-primary-dark-teal/60 hover:-translate-y-[1px]'}`}
+                      aria-label="Next page"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
                   </div>
-                  <button 
-                    disabled={page === paginatedData.pagination.totalPages}
-                    onClick={() => setPage(p => Math.min(paginatedData.pagination.totalPages, p + 1))}
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${page === paginatedData.pagination.totalPages ? 'opacity-50 cursor-not-allowed border border-light-neutral text-primary-dark/50' : 'border border-primary-dark-teal/30 text-primary-dark hover:bg-primary-dark-teal/10 hover:border-primary-dark-teal/60 hover:-translate-y-[1px]'}`}
-                    aria-label="Next page"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                  </button>
-                </div>
+
+                  {/* Mobile Sticky Pagination */}
+                  <div className="md:hidden sticky bottom-6 z-40 flex justify-center mt-10 pointer-events-none">
+                    <div className="flex items-center justify-between gap-6 bg-white/95 backdrop-blur-xl border border-primary-dark-teal/20 shadow-elevated rounded-[20px] px-4 py-3 pointer-events-auto">
+                      <button 
+                        disabled={pageParam === 1}
+                        onClick={() => handlePageChange(pageParam - 1)}
+                        className={`p-2 rounded-full transition-colors flex items-center justify-center bg-primary-dark-teal/5 ${pageParam === 1 ? 'opacity-40 text-primary-dark/50' : 'text-primary-dark hover:bg-primary-dark-teal/20'}`}
+                        aria-label="Previous page"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                      </button>
+                      <div className="text-sm font-bold text-primary-dark tracking-wide">
+                        {pageParam} <span className="text-primary-dark/50 font-semibold px-1">/</span> {totalPages}
+                      </div>
+                      <button 
+                        disabled={pageParam === totalPages}
+                        onClick={() => handlePageChange(pageParam + 1)}
+                        className={`p-2 rounded-full transition-colors flex items-center justify-center bg-primary-dark-teal/5 ${pageParam === totalPages ? 'opacity-40 text-primary-dark/50' : 'text-primary-dark hover:bg-primary-dark-teal/20'}`}
+                        aria-label="Next page"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                      </button>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           </div>

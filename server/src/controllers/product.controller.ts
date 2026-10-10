@@ -13,8 +13,12 @@ export const productController = {
       const sort = (req.query.sort as string) || undefined;
       const inStockParam = req.query.inStock as string | undefined;
       const inStock = inStockParam === "true" ? true : inStockParam === "false" ? false : undefined;
+      
+      const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice as string) : undefined;
+      const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined;
+      const priceRanges = req.query.priceRanges as string | undefined;
 
-      const result = await productService.list({ page, limit, search, category, sort, inStock, status: "active" });
+      const result = await productService.list({ page, limit, search, category, sort, inStock, status: "active", minPrice, maxPrice, priceRanges });
       res.json({ success: true, data: result });
     } catch (err) {
       next(err);
@@ -36,7 +40,11 @@ export const productController = {
         ? (statusParam as "all" | "active" | "inactive") 
         : "all";
 
-      const result = await productService.list({ page, limit, search, category, sort, inStock, status });
+      const minPrice = req.query.minPrice ? parseFloat(req.query.minPrice as string) : undefined;
+      const maxPrice = req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined;
+      const priceRanges = req.query.priceRanges as string | undefined;
+
+      const result = await productService.list({ page, limit, search, category, sort, inStock, status, minPrice, maxPrice, priceRanges });
       res.json({ success: true, data: result });
     } catch (err) {
       next(err);

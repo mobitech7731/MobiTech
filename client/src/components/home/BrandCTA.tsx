@@ -1,18 +1,20 @@
 import { Link } from 'react-router-dom';
 import { Container } from '../ui/Container';
 import { Button } from '../ui/Button';
+import { Reveal } from 'cube-motion/react';
 
 export function BrandCTA() {
   return (
-    <section className="py-24 bg-warm-cream">
+    <section className="py-16 sm:py-24 bg-warm-cream">
       <Container>
-        <div className="relative overflow-hidden bg-primary-dark-teal rounded-3xl shadow-elevated">
-          {/* Subtle gradient background inside the panel */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary-dark via-primary-dark-teal to-secondary-teal opacity-50" />
+        <Reveal>
+          <div className="relative overflow-hidden bg-primary-dark-teal rounded-3xl shadow-elevated">
+            {/* Subtle gradient background inside the panel */}
+            <div className="absolute inset-0 bg-gradient-to-br from-primary-dark via-primary-dark-teal to-secondary-teal opacity-50" />
           
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 items-stretch">
             {/* Left Content */}
-            <div className="p-10 sm:p-12 md:p-16 lg:p-20 flex flex-col justify-center">
+            <div className="p-6 sm:p-10 md:p-16 lg:p-20 flex flex-col justify-center">
               <span className="text-caption text-accent-sand tracking-widest mb-4 block">
                 THE MOBITECH STANDARD
               </span>
@@ -52,6 +54,7 @@ export function BrandCTA() {
             </div>
           </div>
         </div>
+        </Reveal>
       </Container>
     </section>
   );

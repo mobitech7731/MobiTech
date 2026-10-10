@@ -8,6 +8,7 @@ import categoryRoutes from "./routes/categories.js";
 import productRoutes from "./routes/products.js";
 import inventoryRoutes from "./routes/inventory.js";
 import orderRoutes from "./routes/orders.js";
+import uploadRoutes from "./routes/upload.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 const app: Express = express();
@@ -30,6 +31,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // Centralized Error Handling Middleware
 app.use(errorHandler);

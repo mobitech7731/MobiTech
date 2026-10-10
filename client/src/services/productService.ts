@@ -8,6 +8,9 @@ export interface GetProductsParams {
   category?: string;
   sort?: string;
   inStock?: boolean;
+  minPrice?: number;
+  maxPrice?: number;
+  priceRanges?: string;
 }
 
 export interface PaginatedProducts {

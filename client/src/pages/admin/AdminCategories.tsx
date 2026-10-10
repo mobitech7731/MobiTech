@@ -5,7 +5,7 @@ import { Button } from '../../components/ui/Button';
 import { IconButton } from '../../components/ui/IconButton';
 import { 
   Plus, Search, Edit2, Trash2, Power, PowerOff, 
-  Loader2, Filter, X, ArrowUp, ArrowDown 
+  Loader2, Filter, X, ArrowUp, ArrowDown, GripVertical
 } from 'lucide-react';
 import { ApiCategory } from '../../types';
 import { isAxiosError } from 'axios';
@@ -19,6 +19,7 @@ export default function AdminCategories() {
   
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Client-side search filtering
   const filteredCategories = useMemo(() => {
@@ -43,7 +44,7 @@ export default function AdminCategories() {
       await updateCategory({ id: category._id, data: { isActive: !category.isActive } });
     } catch (err) {
       const msg = isAxiosError(err) ? (err.response?.data?.message || err.message) : (err as Error).message;
-      alert(`Failed to update category status: ${msg}`);
+      alert(`Failed to update visibility: ${msg}`);
     }
   };
 
@@ -55,7 +56,7 @@ export default function AdminCategories() {
     } catch (err) {
       if (isAxiosError(err)) {
         if (err.response?.status === 409) {
-          alert(err.response.data.message || 'Cannot delete category because it is in use.');
+          alert(err.response.data.message || 'Cannot delete category because it contains products.');
         } else {
           alert(`Failed to delete category: ${err.response?.data?.message || err.message}`);
         }
@@ -76,8 +77,6 @@ export default function AdminCategories() {
 
     setMovingId(currentCat._id);
     try {
-      // Swap their sortOrder values. 
-      // If they somehow have the same sortOrder, just force a clean offset.
       let newCurrentSort = targetCat.sortOrder;
       const newTargetSort = currentCat.sortOrder;
       if (newCurrentSort === newTargetSort) {
@@ -91,6 +90,47 @@ export default function AdminCategories() {
     } catch (err) {
       const msg = isAxiosError(err) ? (err.response?.data?.message || err.message) : (err as Error).message;
       alert(`Failed to reorder categories: ${msg}`);
+    } finally {
+      setMovingId(null);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOverItem = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDropItem = async (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) {
+      setDraggedIndex(null);
+      return;
+    }
+    
+    const newOrder = [...filteredCategories];
+    const [draggedItem] = newOrder.splice(draggedIndex, 1);
+    newOrder.splice(index, 0, draggedItem);
+    
+    setMovingId(draggedItem._id);
+    setDraggedIndex(null);
+    
+    const updates = newOrder.map((cat, i) => {
+      if (cat.sortOrder !== i) {
+         return updateCategory({ id: cat._id, data: { sortOrder: i } });
+      }
+      return null;
+    }).filter(Boolean);
+    
+    try {
+      await Promise.all(updates);
+    } catch (err) {
+      const msg = isAxiosError(err) ? (err.response?.data?.message || err.message) : (err as Error).message;
+      alert(`Failed to save new order: ${msg}`);
     } finally {
       setMovingId(null);
     }
@@ -129,7 +169,7 @@ export default function AdminCategories() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <Filter size={16} className="text-primary-dark/40" />
-              <span className="text-sm font-medium text-primary-dark/60">Status:</span>
+              <span className="text-sm font-medium text-primary-dark/60">Visibility:</span>
             </div>
             
             <select 
@@ -138,8 +178,8 @@ export default function AdminCategories() {
               className="text-sm border border-light-neutral rounded-md px-3 py-2 outline-none focus:border-primary-dark-teal"
             >
               <option value="all">All</option>
-              <option value="active">Active Only</option>
-              <option value="inactive">Inactive Only</option>
+              <option value="active">Visible Only</option>
+              <option value="inactive">Hidden Only</option>
             </select>
 
             {hasActiveFilters && (
@@ -180,33 +220,36 @@ export default function AdminCategories() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-soft-ivory/50 border-b border-light-neutral text-xs uppercase tracking-wider text-primary-dark/60">
-                    <th className="px-6 py-4 font-medium">Category</th>
-                    <th className="px-6 py-4 font-medium">Status</th>
-                    <th className="px-6 py-4 font-medium">Sort Order</th>
+                    <th className="w-12 px-4 py-4"></th>
+                    <th className="px-6 py-4 font-medium">Category Name</th>
+                    <th className="px-6 py-4 font-medium">Store Visibility</th>
                     <th className="px-6 py-4 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-light-neutral text-sm">
                   {filteredCategories.map((category, index) => {
-                    const imageSrc = category.image || '/images/admin/category-placeholder.svg';
                     const isMoving = movingId === category._id;
 
                     return (
-                      <tr key={category._id} className={`hover:bg-soft-ivory/20 transition-colors group ${isMoving ? 'opacity-50' : ''}`}>
+                      <tr 
+                        key={category._id} 
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, index)}
+                        onDragOver={handleDragOverItem}
+                        onDrop={(e) => handleDropItem(e, index)}
+                        className={`hover:bg-soft-ivory/20 transition-colors group ${isMoving ? 'opacity-50' : ''} ${draggedIndex === index ? 'opacity-30' : ''}`}
+                      >
+                        <td className="px-4 py-4 text-primary-dark/20 cursor-move hover:text-primary-dark-teal transition-colors" title="Drag to reorder">
+                          <GripVertical size={20} />
+                        </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-lg bg-soft-ivory border border-light-neutral flex items-center justify-center overflow-hidden flex-shrink-0">
-                              <img src={imageSrc} alt={category.name} className="w-full h-full object-contain mix-blend-multiply" onError={(e) => { e.currentTarget.src = '/images/admin/category-placeholder.svg'; }} />
+                          <div>
+                            <div className="font-bold text-primary-dark flex items-center gap-2">
+                              {category.name}
                             </div>
-                            <div>
-                              <div className="font-bold text-primary-dark flex items-center gap-2">
-                                {category.name}
-                                <span className="text-xs text-primary-dark/50 font-mono font-normal">{category.slug}</span>
-                              </div>
-                              {category.description && (
-                                <div className="text-xs text-primary-dark/60 mt-0.5 line-clamp-1 max-w-md">{category.description}</div>
-                              )}
-                            </div>
+                            {category.description && (
+                              <div className="text-xs text-primary-dark/60 mt-0.5 line-clamp-1 max-w-md">{category.description}</div>
+                            )}
                           </div>
                         </td>
                         
@@ -216,34 +259,12 @@ export default function AdminCategories() {
                               ? 'bg-green-100 text-green-700' 
                               : 'bg-light-neutral text-primary-dark/60'
                           }`}>
-                            {category.isActive ? 'Active' : 'Inactive'}
+                            {category.isActive ? 'Visible' : 'Hidden'}
                           </span>
-                        </td>
-                        
-                        <td className="px-6 py-4 font-mono text-primary-dark/60">
-                          {category.sortOrder}
                         </td>
                         
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                            {/* Reorder actions */}
-                            <IconButton 
-                              icon={ArrowUp} 
-                              variant="outline" 
-                              aria-label="Move up"
-                              disabled={index === 0 || isMoving}
-                              onClick={() => moveCategory(index, 'up')}
-                              className="w-8 h-8 bg-white border-transparent hover:border-light-neutral text-primary-dark/40 hover:text-primary-dark"
-                            />
-                            <IconButton 
-                              icon={ArrowDown} 
-                              variant="outline" 
-                              aria-label="Move down"
-                              disabled={index === filteredCategories.length - 1 || isMoving}
-                              onClick={() => moveCategory(index, 'down')}
-                              className="w-8 h-8 bg-white border-transparent hover:border-light-neutral text-primary-dark/40 hover:text-primary-dark mr-2"
-                            />
-
                             {/* Standard actions */}
                             <Link to={`/admin/categories/${category._id}/edit`}>
                               <IconButton 
@@ -256,7 +277,7 @@ export default function AdminCategories() {
                             <IconButton 
                               icon={category.isActive ? PowerOff : Power} 
                               variant="outline" 
-                              aria-label={category.isActive ? "Deactivate category" : "Activate category"}
+                              aria-label={category.isActive ? "Hide from store" : "Show in store"}
                               onClick={() => toggleActiveStatus(category)}
                               disabled={isUpdating}
                               className={`w-8 h-8 bg-white ${category.isActive ? 'hover:text-amber-600' : 'hover:text-green-600'}`}
@@ -281,18 +302,16 @@ export default function AdminCategories() {
             {/* Mobile Cards View */}
             <div className="lg:hidden divide-y divide-light-neutral">
               {filteredCategories.map((category, index) => {
-                const imageSrc = category.image || '/images/admin/category-placeholder.svg';
                 const isMoving = movingId === category._id;
 
                 return (
                   <div key={category._id} className={`p-4 bg-white flex flex-col gap-4 ${isMoving ? 'opacity-50' : ''}`}>
-                    <div className="flex gap-4">
-                      <div className="w-16 h-16 rounded-lg bg-soft-ivory border border-light-neutral flex items-center justify-center overflow-hidden flex-shrink-0">
-                        <img src={imageSrc} alt={category.name} className="w-full h-full object-contain mix-blend-multiply" onError={(e) => { e.currentTarget.src = '/images/admin/category-placeholder.svg'; }} />
+                    <div className="flex gap-4 items-center">
+                      <div className="text-primary-dark/20 p-2 cursor-move active:text-primary-dark-teal" title="Drag to reorder">
+                        <GripVertical size={20} />
                       </div>
                       <div className="flex-1">
                         <div className="font-bold text-primary-dark">{category.name}</div>
-                        <div className="text-xs text-primary-dark/60 font-mono mt-0.5">{category.slug}</div>
                         {category.description && (
                           <div className="text-xs text-primary-dark/50 mt-1 line-clamp-2">{category.description}</div>
                         )}
@@ -306,9 +325,8 @@ export default function AdminCategories() {
                             ? 'bg-green-100 text-green-700' 
                             : 'bg-light-neutral text-primary-dark/60'
                         }`}>
-                          {category.isActive ? 'Active' : 'Inactive'}
+                          {category.isActive ? 'Visible' : 'Hidden'}
                         </span>
-                        <span className="text-xs font-mono text-primary-dark/50">Ord: {category.sortOrder}</span>
                       </div>
                       
                       <div className="flex items-center gap-1">

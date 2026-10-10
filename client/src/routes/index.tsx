@@ -3,6 +3,7 @@ import Home from "../pages/Home";
 import Shop from "../pages/Shop";
 import ProductDetails from "../pages/ProductDetails";
 import Cart from "../pages/Cart";
+import { RootLayout } from "../layouts/RootLayout";
 
 // Admin imports
 import AdminLogin from "../pages/admin/AdminLogin";
@@ -18,86 +19,91 @@ import { ProtectedAdminRoute } from "../components/admin/ProtectedAdminRoute";
 import { AdminLayout } from "../layouts/AdminLayout";
 
 export const router = createBrowserRouter([
-  // Customer Routes
   {
-    path: "/",
-    element: <Home />,
-  },
-  {
-    path: "/shop",
-    element: <Shop />,
-  },
-  {
-    path: "/product/:id",
-    element: <ProductDetails />,
-  },
-  {
-    path: "/cart",
-    element: <Cart />,
-  },
-
-  // Admin Login (Unprotected)
-  {
-    path: "/admin/login",
-    element: <AdminLogin />,
-  },
-
-  // Protected Admin Routes
-  {
-    path: "/admin",
-    element: <ProtectedAdminRoute />,
+    element: <RootLayout />,
     children: [
+      // Customer Routes
       {
-        path: "",
-        element: <AdminLayout />,
+        path: "/",
+        element: <Home />,
+      },
+      {
+        path: "/shop",
+        element: <Shop />,
+      },
+      {
+        path: "/product/:id",
+        element: <ProductDetails />,
+      },
+      {
+        path: "/cart",
+        element: <Cart />,
+      },
+
+      // Admin Login (Unprotected)
+      {
+        path: "/admin/login",
+        element: <AdminLogin />,
+      },
+
+      // Protected Admin Routes
+      {
+        path: "/admin",
+        element: <ProtectedAdminRoute />,
         children: [
           {
-            index: true,
-            element: <Navigate to="dashboard" replace />,
-          },
-          {
-            path: "dashboard",
-            element: <AdminDashboard />,
-          },
-          {
-            path: "products",
-            element: <AdminProducts />,
-          },
-          {
-            path: "products/new",
-            element: <AdminProductForm />,
-          },
-          {
-            path: "products/:id/edit",
-            element: <AdminProductForm />,
-          },
-          {
-            path: "categories",
-            element: <AdminCategories />,
-          },
-          {
-            path: "categories/new",
-            element: <AdminCategoryForm />,
-          },
-          {
-            path: "categories/:id/edit",
-            element: <AdminCategoryForm />,
-          },
-          // Placeholders for future routes
-          {
-            path: "inventory",
-            element: <AdminInventory />,
-          },
-          {
-            path: "orders",
-            element: <AdminOrders />,
-          },
-          {
-            path: "orders/:id",
-            element: <AdminOrderDetails />,
-          },
+            path: "",
+            element: <AdminLayout />,
+            children: [
+              {
+                index: true,
+                element: <Navigate to="dashboard" replace />,
+              },
+              {
+                path: "dashboard",
+                element: <AdminDashboard />,
+              },
+              {
+                path: "products",
+                element: <AdminProducts />,
+              },
+              {
+                path: "products/new",
+                element: <AdminProductForm />,
+              },
+              {
+                path: "products/:id/edit",
+                element: <AdminProductForm />,
+              },
+              {
+                path: "categories",
+                element: <AdminCategories />,
+              },
+              {
+                path: "categories/new",
+                element: <AdminCategoryForm />,
+              },
+              {
+                path: "categories/:id/edit",
+                element: <AdminCategoryForm />,
+              },
+              // Placeholders for future routes
+              {
+                path: "inventory",
+                element: <AdminInventory />,
+              },
+              {
+                path: "orders",
+                element: <AdminOrders />,
+              },
+              {
+                path: "orders/:id",
+                element: <AdminOrderDetails />,
+              },
+            ]
+          }
         ]
-      }
+      },
     ]
-  },
+  }
 ]);

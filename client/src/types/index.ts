@@ -8,6 +8,11 @@ export interface ApiCategory {
   sortOrder: number;
 }
 
+export interface ApiProductImage {
+  url: string;
+  publicId?: string;
+}
+
 export interface ApiProduct {
   _id: string;
   name: string;
@@ -16,7 +21,7 @@ export interface ApiProduct {
   category: { _id: string; name: string; slug: string } | string;
   price: number;
   compareAtPrice?: number;
-  images: string[];
+  images: (string | ApiProductImage)[];
   isNewArrival: boolean;
   isFeatured: boolean;
   isTrending: boolean;
@@ -33,12 +38,13 @@ export interface Admin {
 }
 
 export interface Product {
-
   id: string;
   name: string;
   category: string;
+  categorySlug?: string;
   price: number;
   image: string;
+  images?: string[];
   inStock?: boolean;
   isNew?: boolean;
   description?: string;
@@ -46,16 +52,24 @@ export interface Product {
 
 export const mapApiProductToUI = (p: ApiProduct): Product => {
   let catName = 'Accessories';
-  if (typeof p.category === 'object' && p.category !== null && 'name' in p.category) {
-    catName = p.category.name;
+  let catSlug = 'accessories';
+  if (typeof p.category === 'object' && p.category !== null) {
+    if ('name' in p.category) catName = p.category.name;
+    if ('slug' in p.category) catSlug = p.category.slug;
+  } else if (typeof p.category === 'string') {
+    catSlug = p.category;
   }
   
   return {
     id: p._id,
     name: p.name,
     category: catName,
+    categorySlug: catSlug,
     price: p.price,
-    image: p.images && p.images.length > 0 ? p.images[0] : '/images/placeholder.svg',
+    image: p.images && p.images.length > 0 
+      ? (typeof p.images[0] === 'string' ? p.images[0] as string : (p.images[0] as ApiProductImage).url) 
+      : '/images/placeholder.svg',
+    images: p.images ? p.images.map(img => typeof img === 'string' ? img : (img as ApiProductImage).url) : [],
     inStock: p.inStock,
     isNew: p.isNewArrival,
     description: p.description,

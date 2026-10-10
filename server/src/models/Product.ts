@@ -7,7 +7,7 @@ export interface IProduct extends Document {
   category: Types.ObjectId;
   price: number;
   compareAtPrice?: number;
-  images: string[];
+  images: any[];
   isNewArrival: boolean;
   isFeatured: boolean;
   isTrending: boolean;
@@ -27,7 +27,7 @@ const productSchema = new Schema<IProduct>(
     category: { type: Schema.Types.ObjectId, ref: "Category", required: true },
     price: { type: Number, required: true, min: 0 },
     compareAtPrice: { type: Number, min: 0 },
-    images: { type: [String], default: [] },
+    images: { type: [Schema.Types.Mixed], default: [] } as any,
     isNewArrival: { type: Boolean, default: false },
     isFeatured: { type: Boolean, default: false },
     isTrending: { type: Boolean, default: false },

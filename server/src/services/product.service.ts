@@ -11,11 +11,14 @@ interface ListProductsOptions {
   sort?: string;
   inStock?: boolean;
   status?: "all" | "active" | "inactive";
+  minPrice?: number;
+  maxPrice?: number;
+  priceRanges?: string;
 }
 
 export const productService = {
   async list(options: ListProductsOptions) {
-    const { page, limit, search, category, sort, inStock, status = "active" } = options;
+    const { page, limit, search, category, sort, inStock, status = "active", minPrice, maxPrice, priceRanges } = options;
     const skip = (page - 1) * limit;
 
     const filter: FilterQuery<IProduct> = {};
@@ -45,6 +48,35 @@ export const productService = {
 
     if (inStock !== undefined) {
       filter.inStock = inStock;
+    }
+
+    if (priceRanges) {
+      // priceRanges is a comma-separated list of "min-max" strings e.g. "0-999,1000-2500"
+      const ranges = priceRanges.split(',').map(r => {
+        const parts = r.split('-');
+        const min = parseFloat(parts[0]);
+        const max = parts[1] === 'Infinity' ? Infinity : parseFloat(parts[1]);
+        return { min, max };
+      });
+      
+      if (ranges.length > 0) {
+        const priceOr = ranges.map(r => {
+          const condition: any = {};
+          if (!isNaN(r.min)) condition.$gte = r.min;
+          if (r.max !== Infinity && !isNaN(r.max)) condition.$lte = r.max;
+          return { price: condition };
+        });
+        
+        if (filter.$and) {
+          filter.$and.push({ $or: priceOr });
+        } else {
+          filter.$and = [{ $or: priceOr }];
+        }
+      }
+    } else if (minPrice !== undefined || maxPrice !== undefined) {
+      filter.price = {};
+      if (minPrice !== undefined) filter.price.$gte = minPrice;
+      if (maxPrice !== undefined) filter.price.$lte = maxPrice;
     }
 
     let sortQuery: Record<string, 1 | -1> = { createdAt: -1 };

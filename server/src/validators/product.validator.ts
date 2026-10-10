@@ -7,7 +7,13 @@ export const createProductSchema = z.object({
   category: z.string().min(1, "Category ID is required"),
   price: z.number().min(0, "Price must be >= 0"),
   compareAtPrice: z.number().min(0).optional(),
-  images: z.array(z.string()).optional(),
+  images: z.array(z.union([
+    z.string(),
+    z.object({
+      url: z.string(),
+      publicId: z.string().optional()
+    })
+  ])).optional(),
   isNewArrival: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
   isTrending: z.boolean().optional(),

@@ -4,8 +4,9 @@ import { isAxiosError } from 'axios';
 import { useAdminProduct, useProductMutations } from '../../hooks/useProducts';
 import { useCategories } from '../../hooks/useCategories';
 import { Button } from '../../components/ui/Button';
-import { Loader2, ArrowLeft, Plus, X, Image as ImageIcon } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { ApiProduct } from '../../types';
+import { ImageUploader } from '../../components/admin/ImageUploader';
 
 export default function AdminProductForm() {
   const { id } = useParams<{ id: string }>();
@@ -32,7 +33,6 @@ export default function AdminProductForm() {
     isActive: true,
   });
 
-  const [imageInput, setImageInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -56,29 +56,19 @@ export default function AdminProductForm() {
     }
   }, [isEditing, productToEdit]);
 
-  // Auto-generate slug from name if empty
+  // Auto-generate slug from name if empty or creating new product
   const handleNameChange = (val: string) => {
-    setFormData(prev => ({
-      ...prev,
-      name: val,
-      slug: prev.slug || val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
-    }));
-  };
-
-  const handleAddImage = () => {
-    if (!imageInput.trim()) return;
-    setFormData(prev => ({
-      ...prev,
-      images: [...(prev.images || []), imageInput.trim()]
-    }));
-    setImageInput('');
-  };
-
-  const handleRemoveImage = (index: number) => {
     setFormData(prev => {
-      const newImages = [...(prev.images || [])];
-      newImages.splice(index, 1);
-      return { ...prev, images: newImages };
+      // Only auto-generate slug if we are NOT editing, to preserve SEO URLs
+      const newSlug = !isEditing 
+        ? val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
+        : prev.slug;
+        
+      return {
+        ...prev,
+        name: val,
+        slug: newSlug
+      };
     });
   };
 
@@ -131,12 +121,13 @@ export default function AdminProductForm() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto pb-12">
+    <div className="max-w-3xl mx-auto pb-12 px-4 sm:px-0">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <button 
           onClick={() => navigate('/admin/products')}
-          className="w-10 h-10 rounded-full bg-white border border-light-neutral flex items-center justify-center text-primary-dark hover:bg-light-neutral/30 transition-colors"
+          type="button"
+          className="w-10 h-10 rounded-full bg-white border border-light-neutral flex items-center justify-center text-primary-dark hover:bg-light-neutral/30 transition-colors shrink-0"
           aria-label="Back to products"
         >
           <ArrowLeft size={20} />
@@ -146,7 +137,7 @@ export default function AdminProductForm() {
             {isEditing ? 'Edit Product' : 'Add New Product'}
           </h2>
           <p className="text-primary-dark/60 text-sm">
-            {isEditing ? 'Update the product details below.' : 'Create a new product for your catalog.'}
+            {isEditing ? 'Update your product information below.' : 'Fill out the simple details below to add a product to your store.'}
           </p>
         </div>
       </div>
@@ -157,53 +148,33 @@ export default function AdminProductForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Basic Info */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        
+        {/* Section 1: Product Details */}
         <div className="bg-white p-6 sm:p-8 rounded-2xl border border-light-neutral shadow-sm space-y-6">
-          <h3 className="text-lg font-bold text-primary-dark border-b border-light-neutral/50 pb-4">Basic Information</h3>
+          <h3 className="text-lg font-bold text-primary-dark border-b border-light-neutral/50 pb-4">1. Product Details</h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-primary-dark">Product Name *</label>
-              <input
-                type="text"
-                required
-                value={formData.name || ''}
-                onChange={(e) => handleNameChange(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg border border-light-neutral focus:border-primary-dark-teal focus:ring-1 focus:ring-primary-dark-teal outline-none transition-all text-sm"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-primary-dark">Slug (URL snippet) *</label>
-              <input
-                type="text"
-                required
-                value={formData.slug || ''}
-                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                className="w-full px-4 py-2.5 rounded-lg border border-light-neutral focus:border-primary-dark-teal focus:ring-1 focus:ring-primary-dark-teal outline-none transition-all text-sm font-mono"
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-primary-dark">Description *</label>
-            <textarea
+            <label className="block text-sm font-medium text-primary-dark">Product Name *</label>
+            <p className="text-xs text-primary-dark/50 mb-1">What customers will see on the store.</p>
+            <input
+              type="text"
               required
-              rows={4}
-              value={formData.description || ''}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-lg border border-light-neutral focus:border-primary-dark-teal focus:ring-1 focus:ring-primary-dark-teal outline-none transition-all text-sm resize-y"
+              value={formData.name || ''}
+              onChange={(e) => handleNameChange(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-lg border border-light-neutral focus:border-primary-dark-teal focus:ring-1 focus:ring-primary-dark-teal outline-none transition-all text-sm"
+              placeholder="e.g. Samsung Galaxy S24 Ultra"
             />
           </div>
 
           <div className="space-y-2">
             <label className="block text-sm font-medium text-primary-dark">Category *</label>
+            <p className="text-xs text-primary-dark/50 mb-1">Choose the category this product belongs to.</p>
             <select
               required
               value={formData.category as string || ''}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full md:w-1/2 px-4 py-2.5 rounded-lg border border-light-neutral focus:border-primary-dark-teal focus:ring-1 focus:ring-primary-dark-teal outline-none transition-all text-sm bg-white"
+              className="w-full px-4 py-2.5 rounded-lg border border-light-neutral focus:border-primary-dark-teal focus:ring-1 focus:ring-primary-dark-teal outline-none transition-all text-sm bg-white"
             >
               <option value="" disabled>Select a category</option>
               {categories.map(c => (
@@ -211,154 +182,156 @@ export default function AdminProductForm() {
               ))}
             </select>
           </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-primary-dark">Product Description *</label>
+            <p className="text-xs text-primary-dark/50 mb-1">Tell customers about the product, its features or specifications.</p>
+            <textarea
+              required
+              rows={4}
+              value={formData.description || ''}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-lg border border-light-neutral focus:border-primary-dark-teal focus:ring-1 focus:ring-primary-dark-teal outline-none transition-all text-sm resize-y"
+              placeholder="e.g. 6.8-inch display, 256GB storage, 50MP camera..."
+            />
+          </div>
         </div>
 
-        {/* Pricing & Stock */}
+        {/* Section 2: Price & Stock */}
         <div className="bg-white p-6 sm:p-8 rounded-2xl border border-light-neutral shadow-sm space-y-6">
-          <h3 className="text-lg font-bold text-primary-dark border-b border-light-neutral/50 pb-4">Pricing & Inventory</h3>
+          <h3 className="text-lg font-bold text-primary-dark border-b border-light-neutral/50 pb-4">2. Price & Stock</h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-primary-dark">Price (₹) *</label>
+              <label className="block text-sm font-medium text-primary-dark">Selling Price (₹) *</label>
+              <p className="text-xs text-primary-dark/50 mb-1">The price customers will pay.</p>
               <input
                 type="number"
                 required
                 min="0"
-                value={formData.price ?? 0}
+                value={formData.price === 0 && !isEditing ? '' : formData.price}
                 onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
                 className="w-full px-4 py-2.5 rounded-lg border border-light-neutral focus:border-primary-dark-teal focus:ring-1 focus:ring-primary-dark-teal outline-none transition-all text-sm"
+                placeholder="e.g. 4999"
               />
             </div>
-            
+
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-primary-dark">Compare At Price (₹)</label>
+              <label className="block text-sm font-medium text-primary-dark">Original Price (₹) — Optional</label>
+              <p className="text-xs text-primary-dark/50 mb-1">Optional. Use this to show the old price and a discount.</p>
               <input
                 type="number"
                 min="0"
                 value={formData.compareAtPrice || ''}
                 onChange={(e) => setFormData({ ...formData, compareAtPrice: e.target.value ? Number(e.target.value) : undefined })}
-                className="w-full px-4 py-2.5 rounded-lg border border-light-neutral focus:border-primary-dark-teal focus:ring-1 focus:ring-primary-dark-teal outline-none transition-all text-sm placeholder-primary-dark/30"
-                placeholder="Optional"
+                className="w-full px-4 py-2.5 rounded-lg border border-light-neutral focus:border-primary-dark-teal focus:ring-1 focus:ring-primary-dark-teal outline-none transition-all text-sm"
+                placeholder="e.g. 5999"
               />
             </div>
-
+            
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-primary-dark">Stock Quantity *</label>
+              <label className="block text-sm font-medium text-primary-dark">Available Stock *</label>
+              <p className="text-xs text-primary-dark/50 mb-1">How many pieces are currently available.</p>
               <input
                 type="number"
                 required
                 min="0"
-                value={formData.stockQuantity ?? 0}
+                value={formData.stockQuantity === 0 && !isEditing ? '' : formData.stockQuantity}
                 onChange={(e) => setFormData({ ...formData, stockQuantity: Number(e.target.value) })}
                 className="w-full px-4 py-2.5 rounded-lg border border-light-neutral focus:border-primary-dark-teal focus:ring-1 focus:ring-primary-dark-teal outline-none transition-all text-sm"
+                placeholder="e.g. 25"
               />
             </div>
           </div>
         </div>
 
-        {/* Images */}
+        {/* Section 3: Product Photos */}
         <div className="bg-white p-6 sm:p-8 rounded-2xl border border-light-neutral shadow-sm space-y-6">
-          <h3 className="text-lg font-bold text-primary-dark border-b border-light-neutral/50 pb-4">Images</h3>
-          <p className="text-sm text-primary-dark/60 -mt-2">Provide absolute image URLs. Image uploading will be supported in a future update.</p>
+          <h3 className="text-lg font-bold text-primary-dark border-b border-light-neutral/50 pb-4">3. Product Photos</h3>
+          <p className="text-sm text-primary-dark/60 -mt-2 mb-4">Add up to 5 clear photos of this product.</p>
           
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={imageInput}
-              onChange={(e) => setImageInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddImage(); } }}
-              placeholder="https://example.com/image.jpg or /images/..."
-              className="flex-1 px-4 py-2.5 rounded-lg border border-light-neutral focus:border-primary-dark-teal focus:ring-1 focus:ring-primary-dark-teal outline-none transition-all text-sm"
-            />
-            <Button type="button" onClick={handleAddImage} variant="outline" className="bg-white flex items-center gap-2">
-              <Plus size={16} /> Add
-            </Button>
-          </div>
-
-          {formData.images && formData.images.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
-              {formData.images.map((img, idx) => (
-                <div key={idx} className="relative group aspect-square rounded-lg border border-light-neutral bg-soft-ivory overflow-hidden flex items-center justify-center">
-                  <img src={img} alt={`Preview ${idx}`} className="w-full h-full object-contain mix-blend-multiply" onError={(e) => { e.currentTarget.src = '/images/admin/product-placeholder.svg'; }} />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveImage(idx)}
-                    className="absolute top-2 right-2 w-6 h-6 bg-white/90 text-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {(!formData.images || formData.images.length === 0) && (
-            <div className="aspect-[3/1] border-2 border-dashed border-light-neutral rounded-xl flex flex-col items-center justify-center text-primary-dark/40 bg-soft-ivory/30">
-              <ImageIcon size={32} className="mb-2 opacity-50" />
-              <span className="text-sm font-medium">No images added</span>
-            </div>
-          )}
+          <ImageUploader 
+            images={formData.images || []}
+            onChange={(newImages) => setFormData({ ...formData, images: newImages })}
+          />
+          <p className="text-xs text-primary-dark/50 mt-2">Use the first photo as the main product photo.</p>
         </div>
 
-        {/* Status & Flags */}
+        {/* Section 4: Store Visibility */}
         <div className="bg-white p-6 sm:p-8 rounded-2xl border border-light-neutral shadow-sm space-y-6">
-          <h3 className="text-lg font-bold text-primary-dark border-b border-light-neutral/50 pb-4">Status & Flags</h3>
+          <h3 className="text-lg font-bold text-primary-dark border-b border-light-neutral/50 pb-4">4. Store Visibility</h3>
+          <p className="text-sm text-primary-dark/60 -mt-2 mb-4">Choose where and how this product appears in your store.</p>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-            <label className="flex items-center gap-3 cursor-pointer group">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-4">
+            <label className="flex items-start gap-3 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={formData.isActive}
                 onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="rounded border-light-neutral text-primary-dark-teal focus:ring-primary-dark-teal w-4 h-4 cursor-pointer"
+                className="rounded border-light-neutral text-primary-dark-teal focus:ring-primary-dark-teal w-5 h-5 cursor-pointer mt-0.5 shrink-0"
               />
-              <span className="text-sm font-medium text-primary-dark group-hover:text-primary-dark-teal transition-colors">Active (Visible in Store)</span>
+              <div>
+                <span className="block text-sm font-medium text-primary-dark group-hover:text-primary-dark-teal transition-colors">Active / Visible in Store</span>
+                <span className="block text-xs text-primary-dark/50 mt-0.5">Show this product to customers on your website.</span>
+              </div>
             </label>
 
-            <label className="flex items-center gap-3 cursor-pointer group">
+            <label className="flex items-start gap-3 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={formData.isFeatured}
                 onChange={(e) => setFormData({ ...formData, isFeatured: e.target.checked })}
-                className="rounded border-light-neutral text-primary-dark-teal focus:ring-primary-dark-teal w-4 h-4 cursor-pointer"
+                className="rounded border-light-neutral text-primary-dark-teal focus:ring-primary-dark-teal w-5 h-5 cursor-pointer mt-0.5 shrink-0"
               />
-              <span className="text-sm font-medium text-primary-dark group-hover:text-primary-dark-teal transition-colors">Featured Product</span>
+              <div>
+                <span className="block text-sm font-medium text-primary-dark group-hover:text-primary-dark-teal transition-colors">Featured Product</span>
+                <span className="block text-xs text-primary-dark/50 mt-0.5">Show this product in featured sections.</span>
+              </div>
             </label>
 
-            <label className="flex items-center gap-3 cursor-pointer group">
+            <label className="flex items-start gap-3 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={formData.isTrending}
                 onChange={(e) => setFormData({ ...formData, isTrending: e.target.checked })}
-                className="rounded border-light-neutral text-primary-dark-teal focus:ring-primary-dark-teal w-4 h-4 cursor-pointer"
+                className="rounded border-light-neutral text-primary-dark-teal focus:ring-primary-dark-teal w-5 h-5 cursor-pointer mt-0.5 shrink-0"
               />
-              <span className="text-sm font-medium text-primary-dark group-hover:text-primary-dark-teal transition-colors">Trending Product</span>
+              <div>
+                <span className="block text-sm font-medium text-primary-dark group-hover:text-primary-dark-teal transition-colors">Trending Product</span>
+                <span className="block text-xs text-primary-dark/50 mt-0.5">Mark this product as trending.</span>
+              </div>
             </label>
 
-            <label className="flex items-center gap-3 cursor-pointer group">
+            <label className="flex items-start gap-3 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={formData.isBestSeller}
                 onChange={(e) => setFormData({ ...formData, isBestSeller: e.target.checked })}
-                className="rounded border-light-neutral text-primary-dark-teal focus:ring-primary-dark-teal w-4 h-4 cursor-pointer"
+                className="rounded border-light-neutral text-primary-dark-teal focus:ring-primary-dark-teal w-5 h-5 cursor-pointer mt-0.5 shrink-0"
               />
-              <span className="text-sm font-medium text-primary-dark group-hover:text-primary-dark-teal transition-colors">Best Seller</span>
+              <div>
+                <span className="block text-sm font-medium text-primary-dark group-hover:text-primary-dark-teal transition-colors">Best Seller</span>
+                <span className="block text-xs text-primary-dark/50 mt-0.5">Mark this product as a best seller.</span>
+              </div>
             </label>
 
-            <label className="flex items-center gap-3 cursor-pointer group">
+            <label className="flex items-start gap-3 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={formData.isNewArrival}
                 onChange={(e) => setFormData({ ...formData, isNewArrival: e.target.checked })}
-                className="rounded border-light-neutral text-primary-dark-teal focus:ring-primary-dark-teal w-4 h-4 cursor-pointer"
+                className="rounded border-light-neutral text-primary-dark-teal focus:ring-primary-dark-teal w-5 h-5 cursor-pointer mt-0.5 shrink-0"
               />
-              <span className="text-sm font-medium text-primary-dark group-hover:text-primary-dark-teal transition-colors">New Arrival</span>
+              <div>
+                <span className="block text-sm font-medium text-primary-dark group-hover:text-primary-dark-teal transition-colors">New Arrival</span>
+                <span className="block text-xs text-primary-dark/50 mt-0.5">Show this product as a new arrival.</span>
+              </div>
             </label>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-4 pt-4 sticky bottom-4 bg-soft-ivory/80 backdrop-blur-md p-4 rounded-xl border border-light-neutral/50">
+        <div className="flex items-center justify-end gap-4 pt-4 sticky bottom-4 z-50 bg-soft-ivory/90 backdrop-blur-md p-4 rounded-xl border border-light-neutral shadow-sm">
           <Button 
             type="button" 
             variant="outline" 
@@ -372,15 +345,15 @@ export default function AdminProductForm() {
             type="submit" 
             variant="primary" 
             disabled={isSaving}
-            className="flex items-center gap-2 min-w-[140px] justify-center"
+            className="flex items-center gap-2 min-w-[150px] justify-center"
           >
             {isSaving ? (
               <>
                 <Loader2 size={18} className="animate-spin" />
-                Saving...
+                {isEditing ? 'Saving...' : 'Adding Product...'}
               </>
             ) : (
-              'Save Product'
+              isEditing ? 'Save Changes' : 'Add Product'
             )}
           </Button>
         </div>
