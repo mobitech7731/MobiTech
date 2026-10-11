@@ -1,3 +1,5 @@
+import { getOptimizedDeliveryUrl } from '../utils/imageOptimizer';
+
 export interface ApiCategory {
   _id: string;
   name: string;
@@ -60,16 +62,22 @@ export const mapApiProductToUI = (p: ApiProduct): Product => {
     catSlug = p.category;
   }
   
+  const rawMainImage = p.images && p.images.length > 0 
+    ? (typeof p.images[0] === 'string' ? p.images[0] as string : (p.images[0] as ApiProductImage).url) 
+    : '/images/placeholder.svg';
+
+  const rawImages = p.images 
+    ? p.images.map(img => typeof img === 'string' ? img : (img as ApiProductImage).url) 
+    : [];
+
   return {
     id: p._id,
     name: p.name,
     category: catName,
     categorySlug: catSlug,
     price: p.price,
-    image: p.images && p.images.length > 0 
-      ? (typeof p.images[0] === 'string' ? p.images[0] as string : (p.images[0] as ApiProductImage).url) 
-      : '/images/placeholder.svg',
-    images: p.images ? p.images.map(img => typeof img === 'string' ? img : (img as ApiProductImage).url) : [],
+    image: getOptimizedDeliveryUrl(rawMainImage),
+    images: rawImages.map(url => getOptimizedDeliveryUrl(url)),
     inStock: p.inStock,
     isNew: p.isNewArrival,
     description: p.description,

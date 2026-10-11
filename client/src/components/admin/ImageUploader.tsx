@@ -4,6 +4,7 @@ import { X, Edit2, UploadCloud, ZoomIn, ZoomOut, RotateCcw, RotateCw, RefreshCcw
 import { Button } from '../ui/Button';
 import { ApiProductImage } from '../../types';
 import { uploadService } from '../../services/uploadService';
+import { optimizeImage, validateImageFileType } from '../../utils/imageOptimizer';
 
 // Utility to crop image
 const createImage = (url: string): Promise<HTMLImageElement> =>
@@ -36,17 +37,14 @@ async function getCroppedImg(
   const maxSize = Math.max(image.width, image.height);
   const safeArea = 2 * ((maxSize / 2) * Math.sqrt(2));
 
-  // set each dimensions to double largest dimension to allow for a safe area for the
-  // image to rotate in without being clipped by canvas context
+  // Set canvas dimensions to allow rotating without clipping
   canvas.width = safeArea;
   canvas.height = safeArea;
 
-  // translate canvas context to a central location on image to allow rotating around the center.
   ctx.translate(safeArea / 2, safeArea / 2);
   ctx.rotate(getRadianAngle(rotation));
   ctx.translate(-safeArea / 2, -safeArea / 2);
 
-  // draw rotated image and store data.
   ctx.drawImage(
     image,
     safeArea / 2 - image.width * 0.5,
@@ -55,29 +53,30 @@ async function getCroppedImg(
 
   const data = ctx.getImageData(0, 0, safeArea, safeArea);
 
-  // set canvas width to final desired crop size - this will clear existing context
+  // Set canvas width to crop size
   canvas.width = pixelCrop.width;
   canvas.height = pixelCrop.height;
 
-  // paste generated rotate image with correct offsets for x,y crop values.
   ctx.putImageData(
     data,
     Math.round(0 - safeArea / 2 + image.width * 0.5 - pixelCrop.x),
     Math.round(0 - safeArea / 2 + image.height * 0.5 - pixelCrop.y)
   );
 
-  // Resize if too large to save space
-  const MAX_SIZE = 800;
+  // Resize if exceeds 2000px maximum dimension
+  const MAX_SIZE = 2000;
   if (canvas.width > MAX_SIZE || canvas.height > MAX_SIZE) {
     const ratio = Math.min(MAX_SIZE / canvas.width, MAX_SIZE / canvas.height);
-    const w = canvas.width * ratio;
-    const h = canvas.height * ratio;
+    const w = Math.round(canvas.width * ratio);
+    const h = Math.round(canvas.height * ratio);
     
     const smallCanvas = document.createElement('canvas');
     smallCanvas.width = w;
     smallCanvas.height = h;
     const smallCtx = smallCanvas.getContext('2d');
     if (smallCtx) {
+      smallCtx.imageSmoothingEnabled = true;
+      smallCtx.imageSmoothingQuality = 'high';
       smallCtx.drawImage(canvas, 0, 0, w, h);
       return smallCanvas.toDataURL('image/jpeg', 0.85);
     }
@@ -95,6 +94,7 @@ export function ImageUploader({ images, onChange }: ImageUploaderProps) {
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('');
   
   // Image Editor State
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -120,31 +120,83 @@ export function ImageUploader({ images, onChange }: ImageUploaderProps) {
   const processFiles = async (files: FileList | File[]) => {
     setError('');
     const currentCount = images.length;
-    const newFiles = Array.from(files).filter(file => {
-      const isImg = file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/webp';
-      if (!isImg) setError('Only JPG, PNG and WEBP are allowed.');
-      return isImg;
-    });
+    const fileList = Array.from(files);
 
-    if (currentCount + newFiles.length > 5) {
-      setError('You can only upload up to 5 images.');
+    if (currentCount + fileList.length > 5) {
+      setError(`You can only upload up to 5 images total (currently ${currentCount}, tried to add ${fileList.length}).`);
       return;
     }
 
+    const validatedFiles: File[] = [];
+    for (const file of fileList) {
+      const val = validateImageFileType(file);
+      if (!val.valid) {
+        setError(val.error || 'Only JPEG, PNG and WEBP formats are supported.');
+        return;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        setError(`File '${file.name}' is too large (maximum raw file size is 20MB).`);
+        return;
+      }
+      validatedFiles.push(file);
+    }
+
+    if (validatedFiles.length === 0) return;
+
     setIsUploading(true);
+    const successfullyUploaded: ApiProductImage[] = [];
+    const failedErrors: string[] = [];
+
     try {
-      const uploadPromises = newFiles.map(async (file) => {
-        const res = await uploadService.uploadImage(file, file.name);
-        if (!res.success) throw new Error(res.message || 'Upload failed');
-        return res.data;
-      });
-      
-      const uploadedImages = await Promise.all(uploadPromises);
-      onChange([...images, ...uploadedImages]);
-    } catch (err: any) {
-      setError(err.message || 'Failed to process image files.');
+      for (let i = 0; i < validatedFiles.length; i++) {
+        const file = validatedFiles[i];
+        setProcessingStatus(
+          validatedFiles.length > 1
+            ? `Optimizing & uploading ${i + 1} of ${validatedFiles.length}...`
+            : `Optimizing photo '${file.name}'...`
+        );
+
+        try {
+          // Automatic client-side compression, dimension check, and transparency preservation
+          const optimized = await optimizeImage(file, {
+            maxDimension: 2000,
+            initialQuality: 0.85,
+            targetMaxBytes: 2 * 1024 * 1024,
+          });
+
+          setProcessingStatus(
+            validatedFiles.length > 1
+              ? `Uploading ${i + 1} of ${validatedFiles.length}...`
+              : `Uploading to secure storage...`
+          );
+
+          const res = await uploadService.uploadImage(optimized.file, optimized.file.name);
+          if (res.success && res.data) {
+            successfullyUploaded.push({
+              url: res.data.url,
+              publicId: res.data.publicId,
+            });
+          } else {
+            failedErrors.push(`'${file.name}': ${res.message || 'Upload failed'}`);
+          }
+        } catch (itemErr: unknown) {
+          const msg = itemErr instanceof Error ? itemErr.message : 'Upload failed';
+          failedErrors.push(msg);
+        }
+      }
+
+      // Preserve all successfully uploaded photos
+      if (successfullyUploaded.length > 0) {
+        onChange([...images, ...successfullyUploaded]);
+      }
+
+      // Display actionable error diagnostics without wiping existing state
+      if (failedErrors.length > 0) {
+        setError(failedErrors.join(' | '));
+      }
     } finally {
       setIsUploading(false);
+      setProcessingStatus('');
     }
   };
 
@@ -201,6 +253,7 @@ export function ImageUploader({ images, onChange }: ImageUploaderProps) {
   const handleSaveEdit = async () => {
     if (editingIndex === null || !croppedAreaPixels) return;
     setIsUploading(true);
+    setProcessingStatus('Processing cropped photo...');
     try {
       const currentImage = images[editingIndex];
       const imageUrl = typeof currentImage === 'string' ? currentImage : currentImage.url;
@@ -210,7 +263,11 @@ export function ImageUploader({ images, onChange }: ImageUploaderProps) {
       const blob = await resBlob.blob();
       const file = new File([blob], 'cropped.jpg', { type: 'image/jpeg' });
 
-      const uploadRes = await uploadService.uploadImage(file);
+      // Optimize cropped output
+      const optimized = await optimizeImage(file, { maxDimension: 2000, initialQuality: 0.85 });
+
+      setProcessingStatus('Uploading edited photo...');
+      const uploadRes = await uploadService.uploadImage(optimized.file);
       if (!uploadRes.success) throw new Error(uploadRes.message || 'Upload failed');
       
       const newImages = [...images];
@@ -220,19 +277,28 @@ export function ImageUploader({ images, onChange }: ImageUploaderProps) {
       setEditingIndex(null);
       setZoom(1);
       setRotation(0);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      setError(e.message || 'Failed to crop and upload image.');
+      setError(e instanceof Error ? e.message : 'Failed to crop and upload image.');
     } finally {
       setIsUploading(false);
+      setProcessingStatus('');
     }
   };
 
   return (
     <div className="space-y-4">
       {error && (
-        <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">
-          {error}
+        <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 flex items-start justify-between gap-2">
+          <span>{error}</span>
+          <button 
+            type="button" 
+            onClick={() => setError('')} 
+            className="text-red-400 hover:text-red-600 p-0.5"
+            aria-label="Dismiss error"
+          >
+            <X size={14} />
+          </button>
         </div>
       )}
 
@@ -259,7 +325,10 @@ export function ImageUploader({ images, onChange }: ImageUploaderProps) {
             <>
               <Loader2 className="w-10 h-10 text-primary-dark-teal mb-3 animate-spin" />
               <p className="text-sm font-medium text-primary-dark mb-1">
-                Uploading images...
+                {processingStatus || 'Optimizing & uploading images...'}
+              </p>
+              <p className="text-xs text-primary-dark/60">
+                Please wait while photos are optimized and uploaded.
               </p>
             </>
           ) : (
@@ -272,7 +341,7 @@ export function ImageUploader({ images, onChange }: ImageUploaderProps) {
                 or click to browse
               </p>
               <p className="text-xs text-primary-dark/60">
-                JPG, PNG or WEBP ? Up to 5 photos
+                JPEG, PNG or WEBP · Up to 5 photos · Auto-optimized (max 2000px)
               </p>
             </>
           )}
@@ -469,7 +538,7 @@ export function ImageUploader({ images, onChange }: ImageUploaderProps) {
                     {isUploading ? (
                       <>
                         <Loader2 className="animate-spin" size={16} />
-                        Uploading...
+                        {processingStatus || 'Uploading...'}
                       </>
                     ) : (
                       'Save Changes'

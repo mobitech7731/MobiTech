@@ -19,8 +19,8 @@ export async function initAdmin(): Promise<void> {
       try {
         await authService.createAdmin(email, password, name);
         console.log('Admin created:', email);
-      } catch (err: any) {
-        if (err.code === 11000) {
+      } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'code' in err && (err as { code: number }).code === 11000) {
           console.log('Admin already exists (duplicate key):', email);
           const newHash = await hashPassword(password);
           await Admin.updateOne({ email }, { passwordHash: newHash, name });

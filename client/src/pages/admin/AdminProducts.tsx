@@ -212,7 +212,7 @@ export default function AdminProducts() {
                       : String(product.category);
 
                     const imageSrc = product.images && product.images.length > 0
-                      ? (typeof product.images[0] === 'string' ? product.images[0] : (product.images[0] as any).url)
+                      ? (typeof product.images[0] === 'string' ? product.images[0] : (product.images[0] as unknown as {url: string}).url)
                       : '/images/admin/product-placeholder.svg';
 
                     return (
@@ -307,7 +307,7 @@ export default function AdminProducts() {
                   : String(product.category);
 
                   const imageSrc = product.images && product.images.length > 0
-                    ? (typeof product.images[0] === 'string' ? product.images[0] : (product.images[0] as any).url)
+                    ? (typeof product.images[0] === 'string' ? product.images[0] : (product.images[0] as unknown as {url: string}).url)
                     : '/images/admin/product-placeholder.svg';
 
                 return (

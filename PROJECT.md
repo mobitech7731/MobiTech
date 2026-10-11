@@ -8,7 +8,7 @@ A premium mobile-accessories e-commerce platform designed to offer high-quality 
 
 - **Frontend**: Vite, React, TypeScript, Tailwind CSS, React Router, Axios, TanStack Query, Zustand, Lucide React, Zod
 - **Backend**: Node.js, Express, TypeScript, MongoDB, Mongoose, Zod, Helmet, CORS, Cookie-Parser, Dotenv
-- **Tooling & Quality**: ESLint, Prettier, TypeScript Strict Mode
+- **Tooling & Quality**: ESLint, Prettier, TypeScript Strict Mode, Vitest
 
 ## Planned Features
 
@@ -56,3 +56,16 @@ A premium mobile-accessories e-commerce platform designed to offer high-quality 
 ## Current Status
 
 Phase 0 — Foundation
+
+## Protected Requirements
+
+### 1. Form Validation & Diagnostics
+Field-level validation, visible input requirements, accurate backend error mapping, and actionable error notifications are core product requirements. Do not remove, bypass, weaken, or replace these features during future UI, form, API, backend, or refactoring work. Any change to validation behavior must preserve clear user feedback and must update relevant tests and documentation. Removal or material reduction requires explicit authorization from the project owner.
+
+### 2. Image Upload, Auto-Compression & Storage Integrity
+1. **Client-Side Optimization**: Product photos must be automatically optimized and compressed client-side before upload (maximum dimension $\le 2000$px on the longest edge, adaptive quality ~0.80–0.85, target 1–2MB, PNG transparency preserved, no enlargement of small images).
+2. **Cloudinary as Storage Provider**: Cloudinary remains the exclusive image storage provider. Original assets are retained in Cloudinary while delivery is optimized via `f_auto,q_auto`.
+3. **MongoDB Image Binary Ban**: MongoDB stores only image references/metadata (URLs, public IDs, dimensions), NEVER Base64 image data or raw binaries.
+4. **Resilient Upload & Form Preservation**: Upload failures (network, missing configuration, oversized files) must preserve entered product data and selected images, never wipe form state, and display actionable diagnostics.
+5. **Safe Environment Validation**: Server environment variables must be validated safely at startup without leaking secrets into logs, frontend bundles, or error responses.
+6. **No Removal Without Authorization**: These architectural requirements must not be removed or altered without explicit owner authorization.

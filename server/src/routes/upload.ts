@@ -1,21 +1,25 @@
 import { Router, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import { authMiddleware } from "../middleware/auth.js";
-import { cloudinaryService } from "../services/cloudinary.service.js";
+import { cloudinaryService, CloudinaryServiceError } from "../services/cloudinary.service.js";
+import { isValidImageBuffer } from "../utils/imageValidation.js";
 
 const router = Router();
 
-// Configure multer for memory storage
+// Configure multer for memory storage with a strict 5MB limit
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024, // 5 MB limit
+    files: 1,
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     if (file.mimetype === "image/jpeg" || file.mimetype === "image/png" || file.mimetype === "image/webp") {
       cb(null, true);
     } else {
-      cb(new Error("Unsupported file format. Please upload JPEG, PNG, or WEBP."));
+      const err = new Error("Unsupported file format. Please upload JPEG, PNG, or WEBP.");
+      (err as unknown as { code: string }).code = "UNSUPPORTED_FORMAT";
+      cb(err);
     }
   },
 });
@@ -27,12 +31,36 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.file) {
-        res.status(400).json({ success: false, message: "No image file provided" });
+        res.status(400).json({
+          success: false,
+          code: "NO_FILE_PROVIDED",
+          message: "No image file provided in the 'image' field.",
+        });
         return;
       }
 
+      // Check whether Cloudinary storage is configured
       if (!cloudinaryService.isConfigured()) {
-        res.status(503).json({ success: false, message: "Cloudinary configuration is missing on the server" });
+        const status = cloudinaryService.getStatus();
+        res.status(503).json({
+          success: false,
+          code: "STORAGE_NOT_CONFIGURED",
+          message: "Image storage service is not configured on the server. Please add CLOUDINARY credentials to server/.env.",
+          details: {
+            missing: status.missing,
+          },
+        });
+        return;
+      }
+
+      // Validate actual buffer content magic bytes
+      const validation = isValidImageBuffer(req.file.buffer);
+      if (!validation.valid) {
+        res.status(400).json({
+          success: false,
+          code: "INVALID_IMAGE_CONTENT",
+          message: "The uploaded file content does not match a valid JPEG, PNG, or WEBP image.",
+        });
         return;
       }
 
@@ -40,31 +68,51 @@ router.post(
 
       res.status(200).json({
         success: true,
-        data: result, // { url, publicId }
+        data: result,
       });
-    } catch (error: any) {
-      if (error.message.includes("Unsupported file format") || error.message.includes("too large")) {
-        res.status(400).json({ success: false, message: error.message });
-      } else {
-        next(error);
+    } catch (error: unknown) {
+      if (error instanceof CloudinaryServiceError) {
+        res.status(error.status).json({
+          success: false,
+          code: error.code,
+          message: error.message,
+        });
+        return;
       }
+
+      next(error);
     }
   }
 );
 
-// We need an error handling middleware specifically for multer errors thrown before our route handler
-router.use((error: any, req: Request, res: Response, next: NextFunction) => {
+// Multer and file upload error handling middleware
+router.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      res.status(400).json({ success: false, message: "File is too large. Maximum size is 5MB." });
+      res.status(413).json({
+        success: false,
+        code: "FILE_TOO_LARGE",
+        message: "File is too large. Maximum size is 5MB.",
+      });
       return;
     }
-    res.status(400).json({ success: false, message: error.message });
-    return;
-  } else if (error && error.message === "Unsupported file format. Please upload JPEG, PNG, or WEBP.") {
-    res.status(400).json({ success: false, message: error.message });
+    res.status(400).json({
+      success: false,
+      code: error.code || "UPLOAD_ERROR",
+      message: error.message,
+    });
     return;
   }
+
+  if (error instanceof Error && (error.message.includes("Unsupported file format") || (error as unknown as { code?: string }).code === "UNSUPPORTED_FORMAT")) {
+    res.status(415).json({
+      success: false,
+      code: "UNSUPPORTED_MEDIA_TYPE",
+      message: error.message,
+    });
+    return;
+  }
+
   next(error);
 });
 

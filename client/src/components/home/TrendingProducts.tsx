@@ -107,7 +107,7 @@ export function TrendingProducts() {
                 trendingProducts.map((product) => (
                   <div 
                     key={product.id} 
-                    className="w-[calc(33.333%-10.66px)] md:w-auto flex-none snap-start h-auto"
+                    className="w-[calc(45%-8px)] sm:w-[calc(33.333%-10.66px)] md:w-[calc(25%-12px)] lg:w-[calc(25%-18px)] xl:w-[calc(20%-19.2px)] flex-none snap-start h-auto"
                     onClickCapture={(e) => {
                       if (hasDragged) {
                         e.stopPropagation();

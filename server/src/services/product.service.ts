@@ -61,7 +61,7 @@ export const productService = {
       
       if (ranges.length > 0) {
         const priceOr = ranges.map(r => {
-          const condition: any = {};
+          const condition: { $gte?: number; $lte?: number } = {};
           if (!isNaN(r.min)) condition.$gte = r.min;
           if (r.max !== Infinity && !isNaN(r.max)) condition.$lte = r.max;
           return { price: condition };

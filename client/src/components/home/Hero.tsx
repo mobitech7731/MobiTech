@@ -20,7 +20,7 @@ export function Hero() {
         {/* Left Content */}
         <div className="max-w-xl z-10 order-2 lg:order-1 text-center lg:text-left flex flex-col items-center lg:items-start mx-auto lg:mx-0">
           <Rise>
-            <h1 className="text-[2.25rem] sm:text-[3.5rem] md:text-[4.5rem] lg:text-[5.5rem] font-bold tracking-tight text-primary-dark leading-[1.12] mb-3 sm:mb-6">
+            <h1 className="text-[2.25rem] sm:text-[3.5rem] md:text-[4.5rem] lg:text-[4.5rem] xl:text-[5.5rem] font-bold tracking-tight text-primary-dark leading-[1.12] mb-3 sm:mb-6">
               Accessories That<br />
               Feel Premium
             </h1>
