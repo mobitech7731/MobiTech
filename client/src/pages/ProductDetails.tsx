@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Navbar } from '../components/home/Navbar';
 import { Footer } from '../components/home/Footer';
@@ -7,9 +7,10 @@ import { Button } from '../components/ui/Button';
 import { ProductCard } from '../components/home/ProductCard';
 import { formatPrice } from '../utils/formatCurrency';
 import { useCartStore } from '../store/cartStore';
-import { Minus, Plus, MessageCircle, ChevronRight, ShoppingCart, Check, Loader2 } from 'lucide-react';
+import { Minus, Plus, MessageCircle, ChevronLeft, ChevronRight, ShoppingCart, Check, Loader2 } from 'lucide-react';
 import { useProduct, useProducts } from '../hooks/useProducts';
 import { Morph } from 'cube-motion/react';
+import { createWhatsAppInquiryUrl } from '../utils/whatsapp';
 
 export default function ProductDetails() {
   const { id } = useParams<{ id: string }>();
@@ -29,7 +30,32 @@ export default function ProductDetails() {
 
   const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const addItem = useCartStore(state => state.addItem);
+
+  const galleryImages = useMemo(() => {
+    if (!product) return [];
+    if (product.images && product.images.length > 0) {
+      return product.images;
+    }
+    return product.image ? [product.image] : [];
+  }, [product]);
+
+  const activeImage = (galleryImages.length > 0 && galleryImages[selectedImageIndex])
+    ? galleryImages[selectedImageIndex]
+    : (product?.image || '/images/placeholder.svg');
+
+  const handlePrevImage = () => {
+    if (galleryImages.length <= 1) return;
+    setSelectedImageIndex(prev => (prev - 1 + galleryImages.length) % galleryImages.length);
+  };
+
+  const handleNextImage = () => {
+    if (galleryImages.length <= 1) return;
+    setSelectedImageIndex(prev => (prev + 1) % galleryImages.length);
+  };
+
+  const whatsappInquiryUrl = product ? createWhatsAppInquiryUrl(product.name, product.price) : '';
 
   const increaseQuantity = () => {
     setQuantity(prev => (prev < 10 ? prev + 1 : prev));
@@ -97,15 +123,71 @@ export default function ProductDetails() {
           </nav>
 
           <div className="flex flex-col lg:flex-row gap-12 lg:gap-20 mb-20">
-            {/* Left: Product Image */}
-            <div className="w-full lg:w-1/2">
-              <div className="aspect-square bg-white rounded-3xl overflow-hidden border border-light-neutral/50 flex items-center justify-center p-8 lg:p-12 shadow-sm">
+            {/* Left: Product Image Gallery */}
+            <div className="w-full lg:w-1/2 flex flex-col gap-4">
+              <div className="relative aspect-square bg-white rounded-3xl overflow-hidden border border-light-neutral/50 flex items-center justify-center p-8 lg:p-12 shadow-sm group">
                 <img 
-                  src={product.image} 
+                  src={activeImage} 
                   alt={product.name}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = '/images/placeholder.svg';
+                  }}
                   className="w-full h-full object-contain mix-blend-multiply transition-transform duration-700 hover:scale-105"
                 />
+
+                {/* Prev / Next controls for multiple images */}
+                {galleryImages.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handlePrevImage}
+                      aria-label="Previous image"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/85 hover:bg-white text-primary-dark shadow-md flex items-center justify-center transition-all opacity-80 hover:opacity-100 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-dark-teal"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNextImage}
+                      aria-label="Next image"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/85 hover:bg-white text-primary-dark shadow-md flex items-center justify-center transition-all opacity-80 hover:opacity-100 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-dark-teal"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </>
+                )}
               </div>
+
+              {/* Thumbnail Strip (only if multiple images) */}
+              {galleryImages.length > 1 && (
+                <div className="flex items-center gap-3 overflow-x-auto pb-2 pt-1 hide-scrollbar">
+                  {galleryImages.map((imgUrl, index) => {
+                    const isSelected = index === selectedImageIndex;
+                    return (
+                      <button
+                        key={`${imgUrl}-${index}`}
+                        type="button"
+                        onClick={() => setSelectedImageIndex(index)}
+                        aria-label={`View image ${index + 1}`}
+                        className={`relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0 bg-white rounded-2xl overflow-hidden border-2 transition-all p-1.5 flex items-center justify-center ${
+                          isSelected
+                            ? 'border-primary-dark-teal ring-2 ring-primary-dark-teal/30 shadow-sm'
+                            : 'border-light-neutral/60 opacity-70 hover:opacity-100 hover:border-primary-dark-teal/40'
+                        }`}
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`${product.name} thumbnail ${index + 1}`}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = '/images/placeholder.svg';
+                          }}
+                          className="w-full h-full object-contain mix-blend-multiply"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Right: Product Info */}
@@ -191,20 +273,31 @@ export default function ProductDetails() {
                 </div>
 
                 {/* WhatsApp CTA */}
-                <a 
-                  href={`https://wa.me/REPLACE_WITH_NUMBER?text=Hi, I'm interested in the ${encodeURIComponent(product.name)}`}
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="block"
-                >
+                {whatsappInquiryUrl ? (
+                  <a 
+                    href={whatsappInquiryUrl}
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <Button 
+                      variant="outline" 
+                      className="w-full h-14 text-base tracking-wide flex items-center justify-center gap-2 bg-white hover:bg-primary-dark-teal/5 transition-colors"
+                    >
+                      <MessageCircle size={20} className="text-primary-dark-teal" />
+                      Buy on WhatsApp
+                    </Button>
+                  </a>
+                ) : (
                   <Button 
                     variant="outline" 
-                    className="w-full h-14 text-base tracking-wide flex items-center justify-center gap-2 bg-white"
+                    disabled
+                    className="w-full h-14 text-base tracking-wide flex items-center justify-center gap-2 bg-white opacity-50 cursor-not-allowed"
                   >
                     <MessageCircle size={20} className="text-primary-dark-teal" />
-                    Buy on WhatsApp
+                    Buy on WhatsApp (Unavailable)
                   </Button>
-                </a>
+                )}
               </div>
             </div>
           </div>

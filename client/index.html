@@ -2,9 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mobitech</title>
+    <!-- Preload LCP hero image for fast discoverability -->
+    <link rel="preload" as="image" href="/images/hero-products-mobile.webp" media="(max-width: 640px)" type="image/webp" fetchpriority="high" />
+    <link rel="preload" as="image" href="/images/hero-products.webp" media="(min-width: 641px)" type="image/webp" fetchpriority="high" />
   </head>
   <body>
     <div id="root"></div>

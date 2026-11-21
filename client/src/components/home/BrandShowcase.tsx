@@ -4,6 +4,8 @@ interface BrandLogo {
   id: string;
   name: string;
   src: string;
+  width: number;
+  height: number;
   className: string;
 }
 
@@ -12,24 +14,32 @@ const row1Logos: BrandLogo[] = [
     id: 'aesop',
     name: 'Aesop',
     src: '/images/logos/logo-aesop.png',
+    width: 95,
+    height: 35,
     className: 'h-8 sm:h-11 md:h-13 lg:h-[56px] w-auto object-contain opacity-90',
   },
   {
     id: 'cos',
     name: 'COS',
     src: '/images/logos/logo-cos.png',
+    width: 80,
+    height: 40,
     className: 'h-9 sm:h-12 md:h-14 lg:h-[62px] w-auto object-contain opacity-90',
   },
   {
     id: 'linear',
     name: 'Linear',
     src: '/images/logos/logo-linear.png',
+    width: 80,
+    height: 32,
     className: 'h-6 sm:h-8 md:h-10 lg:h-[42px] w-auto object-contain opacity-90',
   },
   {
     id: 'nothing',
     name: 'Nothing',
     src: '/images/logos/logo-nothing.png',
+    width: 85,
+    height: 32,
     className: 'h-6 sm:h-8 md:h-10 lg:h-[42px] w-auto object-contain opacity-90',
   },
 ];
@@ -53,10 +63,13 @@ export function BrandShowcase() {
             <div className="w-1/2 h-full p-2 sm:p-3 md:p-4 lg:p-5 flex items-center justify-center">
               <div className="w-full h-full rounded-[16px] sm:rounded-[24px] md:rounded-[30px] lg:rounded-[34px] overflow-hidden bg-black/10">
                 <img
-                  src="/images/brand-showcase-art.png"
+                  src="/images/brand-showcase-art.webp"
                   alt="Brand Showcase"
+                  width={195}
+                  height={90}
                   className="w-full h-full object-cover"
                   loading="lazy"
+                  decoding="async"
                 />
               </div>
             </div>
@@ -75,8 +88,11 @@ export function BrandShowcase() {
                   <img
                     src={logo.src}
                     alt={logo.name}
+                    width={logo.width}
+                    height={logo.height}
                     className={logo.className}
                     loading="lazy"
+                    decoding="async"
                   />
                 </div>
               ))}

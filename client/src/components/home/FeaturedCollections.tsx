@@ -7,7 +7,9 @@ const collections = [
     id: 'featured',
     title: 'Featured\nCollection',
     description: 'Premium Mobile Accessories\nfor your everyday setup.',
-    image: '/images/collections/featured-collection-cropped.png',
+    image: '/images/collections/featured-collection-cropped.webp',
+    width: 740,
+    height: 594,
     className: 'row-span-1 lg:row-span-2 col-span-1 bg-[#12362f]',
     titleClass: 'text-xl sm:text-2xl lg:text-5xl xl:text-[54px] font-bold leading-[1.05] mb-2 sm:mb-3 lg:mb-4 text-white tracking-tight',
     descClass: 'hidden sm:block text-xs sm:text-sm lg:text-lg text-white/80 max-w-[200px] sm:max-w-[240px] lg:max-w-[300px]',
@@ -19,7 +21,9 @@ const collections = [
   {
     id: 'magsafe',
     title: 'MagSafe\nAccessories',
-    image: '/images/collections/magsafe-accessories.png',
+    image: '/images/collections/magsafe-accessories.webp',
+    width: 382,
+    height: 435,
     className: 'bg-gradient-to-br from-[#173e35] to-[#255246]',
     titleClass: 'text-base sm:text-lg lg:text-2xl xl:text-3xl font-bold text-white',
     imageClass: 'absolute bottom-0 right-2 sm:right-3 lg:right-4 w-[55%] sm:w-[48%] max-w-[185px] h-[75%] sm:h-[82%] object-contain object-bottom drop-shadow-xl',
@@ -29,7 +33,9 @@ const collections = [
   {
     id: 'audio',
     title: 'Wireless\nAudio',
-    image: '/images/collections/wireless-audio.png',
+    image: '/images/collections/wireless-audio.webp',
+    width: 414,
+    height: 450,
     className: 'bg-gradient-to-br from-[#173e35] via-[#2a4f3b] to-[var(--color-bitter-yellow)]',
     titleClass: 'text-base sm:text-lg lg:text-2xl xl:text-3xl font-bold text-white',
     imageClass: 'absolute bottom-2 sm:bottom-3 lg:bottom-4 right-2 sm:right-3 lg:right-5 w-[55%] sm:w-[48%] max-w-[195px] h-[70%] sm:h-[80%] object-contain drop-shadow-xl',
@@ -39,7 +45,9 @@ const collections = [
   {
     id: 'wireless-essentials',
     title: 'Wireless\nEssentials',
-    image: '/images/collections/wireless-essentials.png',
+    image: '/images/collections/wireless-essentials.webp',
+    width: 480,
+    height: 330,
     className: 'bg-gradient-to-br from-[#1c443b] to-[#122e27]',
     titleClass: 'text-base sm:text-lg lg:text-2xl xl:text-3xl font-bold text-white',
     imageClass: 'absolute bottom-2 right-2 sm:right-4 w-[60%] sm:w-[52%] max-w-[210px] h-[65%] sm:h-[72%] object-contain object-bottom drop-shadow-xl',
@@ -49,7 +57,9 @@ const collections = [
   {
     id: 'gaming-essentials',
     title: 'Gaming\nEssentials',
-    image: '/images/collections/gaming-essentials.png',
+    image: '/images/collections/gaming-essentials.webp',
+    width: 402,
+    height: 322,
     className: 'bg-gradient-to-br from-[#194036] to-[#406050]',
     titleClass: 'text-base sm:text-lg lg:text-2xl xl:text-3xl font-bold text-white',
     imageClass: 'absolute bottom-2 right-2 sm:right-4 w-[60%] sm:w-[52%] max-w-[205px] h-[65%] sm:h-[72%] object-contain object-bottom drop-shadow-xl',
@@ -59,7 +69,9 @@ const collections = [
   {
     id: 'chargers',
     title: 'Premium\nChargers',
-    image: '/images/collections/premium-chargers.png',
+    image: '/images/collections/premium-chargers.webp',
+    width: 475,
+    height: 462,
     className: 'bg-gradient-to-br from-[#173e35] to-[#3a6857]',
     titleClass: 'text-base sm:text-lg lg:text-2xl xl:text-3xl font-bold text-white',
     imageClass: 'absolute bottom-0 right-2 sm:right-5 w-[55%] sm:w-[48%] max-w-[190px] h-[75%] sm:h-[84%] object-contain object-bottom drop-shadow-xl',
@@ -69,7 +81,9 @@ const collections = [
   {
     id: 'new-arrivals',
     title: 'New\nArrivals',
-    image: '/images/collections/new-arrivals.png',
+    image: '/images/collections/new-arrivals.webp',
+    width: 372,
+    height: 490,
     className: 'bg-[#12332a]',
     titleClass: 'text-base sm:text-lg lg:text-2xl xl:text-3xl font-bold text-white',
     imageClass: 'absolute bottom-0 right-2 sm:right-5 w-[55%] sm:w-[46%] max-w-[175px] h-[80%] sm:h-[88%] object-contain object-bottom drop-shadow-2xl',
@@ -79,7 +93,9 @@ const collections = [
   {
     id: 'limited',
     title: 'Limited Edition\nProducts',
-    image: '/images/collections/limited-edition.png',
+    image: '/images/collections/limited-edition.webp',
+    width: 350,
+    height: 354,
     className: 'bg-gradient-to-br from-[#13332c] to-[#0a1c18]',
     titleClass: 'text-base sm:text-lg lg:text-2xl xl:text-3xl font-bold text-white',
     imageClass: 'absolute bottom-2 right-2 sm:right-5 w-[55%] sm:w-[48%] max-w-[185px] h-[75%] sm:h-[80%] object-contain object-bottom drop-shadow-2xl',
@@ -126,8 +142,11 @@ export function FeaturedCollections() {
                 <img 
                   src={item.image} 
                   alt={`${item.title.replace('\n', ' ')} artwork`} 
+                  width={item.width}
+                  height={item.height}
                   className={`z-0 transition-transform duration-700 ease-out group-hover:scale-105 ${item.imageClass}`}
                   loading="lazy"
+                  decoding="async"
                 />
               </div>
             </Link>

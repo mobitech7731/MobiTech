@@ -49,11 +49,20 @@ export function Hero() {
 
         {/* Right Visual */}
         <div className="relative w-full aspect-auto md:aspect-[4/3] lg:aspect-[1/1] flex items-center justify-center z-10 order-1 lg:order-2 mb-4 lg:mb-0">
-           <img 
-             src="/images/hero-products.png" 
-             alt="Premium Mobile Accessories Collection"
-             className="w-[85%] sm:w-[80%] max-w-[400px] lg:w-[110%] h-auto lg:max-w-none mx-auto lg:ml-10 object-contain drop-shadow-2xl"
-           />
+          <picture className="w-[85%] sm:w-[80%] max-w-[400px] lg:w-[110%] h-auto lg:max-w-none mx-auto lg:ml-10 drop-shadow-2xl flex items-center justify-center">
+            <source media="(max-width: 640px)" type="image/webp" srcSet="/images/hero-products-mobile.webp" />
+            <source type="image/webp" srcSet="/images/hero-products.webp" />
+            <img 
+              src="/images/hero-products.png" 
+              alt="Premium Mobile Accessories Collection"
+              width={1024}
+              height={794}
+              fetchPriority="high"
+              loading="eager"
+              decoding="async"
+              className="w-full h-auto object-contain"
+            />
+          </picture>
         </div>
       </Container>
     </section>

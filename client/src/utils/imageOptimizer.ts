@@ -91,6 +91,20 @@ function hasCanvasTransparency(ctx: CanvasRenderingContext2D, width: number, hei
 }
 
 /**
+ * Detects whether the current environment supports exporting HTML5 Canvas to WebP.
+ */
+function isWebpExportSupported(): boolean {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1;
+    canvas.height = 1;
+    return canvas.toDataURL('image/webp').startsWith('data:image/webp');
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Canvas to Blob wrapper
  */
 function canvasToBlob(canvas: HTMLCanvasElement, format: string, quality: number): Promise<Blob | null> {
@@ -100,7 +114,12 @@ function canvasToBlob(canvas: HTMLCanvasElement, format: string, quality: number
 }
 
 /**
- * Optimize an image file client-side before upload
+ * Optimize an image file client-side before upload:
+ * - Converts product images to WebP automatically.
+ * - Preserves PNG transparency (WebP natively supports 8-bit alpha channels).
+ * - Downsizes oversized images to max 2000px preserving aspect ratio.
+ * - Applies adaptive quality (0.80 - 0.85) targeting ~1-2MB.
+ * - Gracefully falls back to JPEG/PNG if WebP export is unsupported.
  */
 export async function optimizeImage(
   file: File,
@@ -108,7 +127,7 @@ export async function optimizeImage(
 ): Promise<OptimizeResult> {
   const {
     maxDimension = 2000,
-    initialQuality = 0.85,
+    initialQuality = 0.82,
     targetMaxBytes = 2 * 1024 * 1024, // 2 MB
     minQuality = 0.72,
   } = options;
@@ -124,8 +143,9 @@ export async function optimizeImage(
   const origWidth = img.naturalWidth || img.width;
   const origHeight = img.naturalHeight || img.height;
 
-  // If already under maxDimension and under target file size, return as-is
-  if (origWidth <= maxDimension && origHeight <= maxDimension && file.size <= 1.2 * 1024 * 1024) {
+  // If already WebP, within max dimensions, and under target file size, return as-is
+  const isAlreadyWebp = file.type === 'image/webp' || file.name.toLowerCase().endsWith('.webp');
+  if (isAlreadyWebp && origWidth <= maxDimension && origHeight <= maxDimension && file.size <= 1.2 * 1024 * 1024) {
     return {
       file,
       originalSize: file.size,
@@ -133,7 +153,7 @@ export async function optimizeImage(
       width: origWidth,
       height: origHeight,
       compressionRatio: 1,
-      format: file.type,
+      format: 'image/webp',
     };
   }
 
@@ -173,24 +193,25 @@ export async function optimizeImage(
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
 
-  // Determine output format & transparency preservation
+  // Determine output format: convert to WebP automatically while preserving PNG transparency
+  const webpSupported = isWebpExportSupported();
   const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
-  let outputFormat = file.type || 'image/jpeg';
+  const hasTransparency = isPng && hasCanvasTransparency(ctx, targetWidth, targetHeight);
+
+  let outputFormat = 'image/webp';
   let preservePng = false;
 
-  if (isPng) {
-    const hasTransparency = hasCanvasTransparency(ctx, targetWidth, targetHeight);
+  if (webpSupported) {
+    // WebP natively preserves alpha transparency with high compression efficiency
+    outputFormat = 'image/webp';
+  } else {
+    // Fallback if browser canvas does not support WebP export
     if (hasTransparency) {
       preservePng = true;
       outputFormat = 'image/png';
     } else {
-      // Non-transparent PNG can be converted to WebP or JPEG for significant bandwidth savings
       outputFormat = 'image/jpeg';
     }
-  } else if (file.type === 'image/webp' || file.name.toLowerCase().endsWith('.webp')) {
-    outputFormat = 'image/webp';
-  } else {
-    outputFormat = 'image/jpeg';
   }
 
   // Adaptive quality loop
@@ -204,7 +225,7 @@ export async function optimizeImage(
     
     // If still over targetMaxBytes, try lower quality steps
     while (blob && blob.size > targetMaxBytes && currentQuality > minQuality) {
-      currentQuality = Math.max(minQuality, currentQuality - 0.06);
+      currentQuality = Math.max(minQuality, currentQuality - 0.05);
       const nextBlob = await canvasToBlob(canvas, outputFormat, currentQuality);
       if (nextBlob) {
         blob = nextBlob;
@@ -212,8 +233,7 @@ export async function optimizeImage(
     }
   }
 
-  // If compression produced a larger file than the original, keep original
-  if (!blob || (blob.size >= file.size && origWidth <= maxDimension && origHeight <= maxDimension)) {
+  if (!blob) {
     return {
       file,
       originalSize: file.size,
@@ -226,9 +246,9 @@ export async function optimizeImage(
   }
 
   // Determine new file extension
-  let ext = '.jpg';
+  let ext = '.webp';
   if (outputFormat === 'image/png') ext = '.png';
-  if (outputFormat === 'image/webp') ext = '.webp';
+  else if (outputFormat === 'image/jpeg') ext = '.jpg';
 
   const baseName = file.name.replace(/\.[^/.]+$/, '');
   const newFileName = `${baseName}${ext}`;
@@ -247,33 +267,60 @@ export async function optimizeImage(
 
 /**
  * Optimizes Cloudinary delivery URLs by injecting automatic format and quality parameters (f_auto, q_auto).
- * Leaves local paths and non-Cloudinary URLs unmodified.
+ * Also routes external images (e.g. thumb.wikimedia.org) through Cloudinary fetch for automatic WebP conversion,
+ * adaptive quality, and CDN caching. Leaves local paths unmodified.
  */
+const CLOUDINARY_CLOUD_NAME = 'k3exmer1';
+
 export function getOptimizedDeliveryUrl(
   url: string,
   transformations?: { width?: number; height?: number }
 ): string {
-  if (!url || typeof url !== 'string' || !url.includes('res.cloudinary.com')) {
+  if (!url || typeof url !== 'string') {
     return url;
   }
 
-  // Already transformed
-  if (url.includes('/f_auto') || url.includes('/q_auto')) {
-    return url;
+  // 1. Cloudinary upload assets
+  if (url.includes('res.cloudinary.com')) {
+    // Already transformed
+    if (url.includes('/f_auto') || url.includes('/q_auto')) {
+      return url;
+    }
+
+    const uploadSegment = '/image/upload/';
+    const idx = url.indexOf(uploadSegment);
+    if (idx === -1) {
+      return url;
+    }
+
+    const params: string[] = ['f_auto', 'q_auto'];
+    if (transformations?.width) {
+      params.push(`w_${transformations.width}`, 'c_limit');
+    }
+
+    const transformString = params.join(',') + '/';
+    return url.slice(0, idx + uploadSegment.length) + transformString + url.slice(idx + uploadSegment.length);
   }
 
-  const uploadSegment = '/image/upload/';
-  const idx = url.indexOf(uploadSegment);
-  if (idx === -1) {
-    return url;
+  // 2. External HTTP/HTTPS URLs (e.g. thumb.wikimedia.org):
+  // Route through Cloudinary fetch for modern format (WebP/AVIF), quality optimization, and CDN edge caching
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    const widthParam = transformations?.width ? `,w_${transformations.width},c_limit` : ',w_500,c_limit';
+    return `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/fetch/f_auto,q_auto${widthParam}/${url}`;
   }
 
-  const params: string[] = ['f_auto', 'q_auto'];
-  if (transformations?.width) {
-    params.push(`w_${transformations.width}`, 'c_limit');
+  // 3. Local assets with converted WebP counterparts
+  // If products or components reference local .png images that have modern WebP equivalents in client/public/images:
+  if (
+    url.endsWith('.png') &&
+    (url.includes('/collections/') ||
+      url.includes('hero-products') ||
+      url.includes('brand-showcase') ||
+      url.includes('icon-'))
+  ) {
+    return url.replace(/\.png$/i, '.webp');
   }
 
-  const transformString = params.join(',') + '/';
-  return url.slice(0, idx + uploadSegment.length) + transformString + url.slice(idx + uploadSegment.length);
+  return url;
 }
 

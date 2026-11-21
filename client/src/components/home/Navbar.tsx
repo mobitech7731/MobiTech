@@ -1,4 +1,4 @@
-import { Search, Heart, ShoppingBag, Menu, X } from 'lucide-react';
+import { Search, ShoppingBag, Menu, X } from 'lucide-react';
 import { GlassSurface } from '../ui/GlassSurface';
 import { IconButton } from '../ui/IconButton';
 import { useState, useEffect } from 'react';
@@ -110,7 +110,6 @@ export function Navbar() {
 
         {/* Icons - Desktop */}
         <div className="hidden md:flex items-center gap-2">
-          <IconButton icon={Heart} size="sm" aria-label="Wishlist" />
           <Link to="/cart" className="relative flex items-center justify-center p-1.5 md:p-2 text-primary-dark hover:bg-black/5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-dark-teal">
               <ShoppingBag size={20} strokeWidth={1.5} className="w-4 h-4 md:w-5 md:h-5" />
               <Rise 
@@ -130,12 +129,6 @@ export function Navbar() {
             <Link to="/shop?category=wireless-audio" className="text-lg font-semibold text-primary-dark py-1">Audio</Link>
             <Link to="/shop?category=chargers-adapters" className="text-lg font-semibold text-primary-dark py-1">Power</Link>
             <Link to="/shop" className="text-lg font-semibold text-primary-dark py-1">Shop All</Link>
-            <hr className="border-light-neutral/50" />
-            <div className="flex items-center gap-4 py-2">
-              <button className="flex items-center gap-2 text-sm text-primary-dark/80 font-medium">
-                <Heart size={18} /> Wishlist
-              </button>
-            </div>
           </div>
         )}
       </GlassSurface>

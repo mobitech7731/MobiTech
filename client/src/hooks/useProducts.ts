@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { productService, GetProductsParams, GetAdminProductsParams } from '../services/productService';
 import { ApiProduct } from '../types';
 
@@ -6,6 +6,7 @@ export const useProducts = (params: GetProductsParams = {}) => {
   return useQuery({
     queryKey: ['products', params],
     queryFn: () => productService.getProducts(params),
+    placeholderData: keepPreviousData,
   });
 };
 

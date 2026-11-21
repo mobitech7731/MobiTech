@@ -133,8 +133,10 @@ export default function Shop() {
 
   const productListRef = useRef<HTMLDivElement>(null);
 
+  const isFirstPageMount = useRef(true);
+
   // Fetch Products
-  const { data: paginatedData, isLoading: isLoadingProducts, isError } = useProducts({
+  const { data: paginatedData, isLoading: isLoadingProducts, isPlaceholderData, isError } = useProducts({
     search: currentSearch || undefined,
     category: currentCategory !== 'all' ? currentCategory : undefined,
     sort: sortOption !== 'featured' ? sortOption : undefined,
@@ -147,20 +149,27 @@ export default function Shop() {
   const filteredProducts = paginatedData?.products || [];
   const totalPages = paginatedData?.pagination.totalPages || 1;
 
+  // Smooth scroll to product listing when page changes (handles both button clicks and browser history navigation)
+  useEffect(() => {
+    if (isFirstPageMount.current) {
+      isFirstPageMount.current = false;
+      return;
+    }
+    if (productListRef.current) {
+      const navbarOffset = 100;
+      const elementPosition = productListRef.current.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({
+        top: Math.max(0, elementPosition - navbarOffset),
+        behavior: 'smooth',
+      });
+    }
+  }, [pageParam]);
+
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages || newPage === pageParam) return;
     const newParams = new URLSearchParams(searchParams);
     newParams.set('page', newPage.toString());
     setSearchParams(newParams, { replace: true, state: { preventScrollReset: true } });
-    
-    if (productListRef.current) {
-      const navbarHeight = 120;
-      const elementPosition = productListRef.current.getBoundingClientRect().top + window.scrollY;
-      window.scrollTo({
-        top: elementPosition - navbarHeight,
-        behavior: 'smooth'
-      });
-    }
   };
 
   const handleCategoryChange = (catId: string) => {
@@ -535,7 +544,7 @@ export default function Shop() {
                   </Button>
                 </div>
               ) : filteredProducts.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:gap-8">
+                <div className={`grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:gap-8 transition-opacity duration-200 ${isPlaceholderData ? 'opacity-60 pointer-events-none' : 'opacity-100'}`}>
                   {filteredProducts.map(product => (
                     <ProductCard key={product.id} product={product} />
                   ))}

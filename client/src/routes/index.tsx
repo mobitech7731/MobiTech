@@ -1,26 +1,31 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
+import { lazy } from "react";
 import Home from "../pages/Home";
-import Shop from "../pages/Shop";
-import ProductDetails from "../pages/ProductDetails";
-import Cart from "../pages/Cart";
 import { RootLayout } from "../layouts/RootLayout";
+import { RouteErrorBoundary } from "../components/ui/RouteErrorBoundary";
 
-// Admin imports
-import AdminLogin from "../pages/admin/AdminLogin";
-import AdminDashboard from "../pages/admin/AdminDashboard";
-import AdminProducts from "../pages/admin/AdminProducts";
-import AdminProductForm from "../pages/admin/AdminProductForm";
-import AdminCategories from "../pages/admin/AdminCategories";
-import AdminCategoryForm from "../pages/admin/AdminCategoryForm";
-import AdminInventory from "../pages/admin/AdminInventory";
-import AdminOrders from "../pages/admin/AdminOrders";
-import AdminOrderDetails from "../pages/admin/AdminOrderDetails";
-import { ProtectedAdminRoute } from "../components/admin/ProtectedAdminRoute";
-import { AdminLayout } from "../layouts/AdminLayout";
+// Customer routes lazy loaded
+const Shop = lazy(() => import("../pages/Shop"));
+const ProductDetails = lazy(() => import("../pages/ProductDetails"));
+const Cart = lazy(() => import("../pages/Cart"));
+
+// Admin routes lazy loaded
+const AdminLogin = lazy(() => import("../pages/admin/AdminLogin"));
+const AdminDashboard = lazy(() => import("../pages/admin/AdminDashboard"));
+const AdminProducts = lazy(() => import("../pages/admin/AdminProducts"));
+const AdminProductForm = lazy(() => import("../pages/admin/AdminProductForm"));
+const AdminCategories = lazy(() => import("../pages/admin/AdminCategories"));
+const AdminCategoryForm = lazy(() => import("../pages/admin/AdminCategoryForm"));
+const AdminInventory = lazy(() => import("../pages/admin/AdminInventory"));
+const AdminOrders = lazy(() => import("../pages/admin/AdminOrders"));
+const AdminOrderDetails = lazy(() => import("../pages/admin/AdminOrderDetails"));
+const ProtectedAdminRoute = lazy(() => import("../components/admin/ProtectedAdminRoute").then(m => ({ default: m.ProtectedAdminRoute })));
+const AdminLayout = lazy(() => import("../layouts/AdminLayout").then(m => ({ default: m.AdminLayout })));
 
 export const router = createBrowserRouter([
   {
     element: <RootLayout />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       // Customer Routes
       {
@@ -38,6 +43,10 @@ export const router = createBrowserRouter([
       {
         path: "/cart",
         element: <Cart />,
+      },
+      {
+        path: "/wishlist",
+        element: <Navigate to="/shop" replace />,
       },
 
       // Admin Login (Unprotected)

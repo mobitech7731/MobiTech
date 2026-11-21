@@ -9,7 +9,7 @@ import { IconButton } from '../components/ui/IconButton';
 import { formatPrice } from '../utils/formatCurrency';
 import { useCartStore } from '../store/cartStore';
 import { Minus, Plus, Trash2, ShoppingBag, MessageCircle, Loader2, CheckCircle2 } from 'lucide-react';
-import { createWhatsAppOrderUrl } from '../utils/whatsapp';
+import { createWhatsAppOrderUrl, getSanitizedWhatsAppNumber } from '../utils/whatsapp';
 import { orderService, CreateOrderResponse } from '../services/orderService';
 import { useMutation } from '@tanstack/react-query';
 
@@ -27,8 +27,8 @@ export default function Cart() {
 
   const subtotal = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
 
-  const whatsappNumber = import.meta.env.VITE_WHATSAPP_NUMBER;
-  const isWhatsAppConfigured = whatsappNumber && whatsappNumber !== 'REPLACE_WITH_BUSINESS_NUMBER';
+  const sanitizedWhatsAppNumber = getSanitizedWhatsAppNumber(import.meta.env.VITE_WHATSAPP_NUMBER);
+  const isWhatsAppConfigured = !!sanitizedWhatsAppNumber;
 
   const createOrderMutation = useMutation({
     mutationFn: (payload: Parameters<typeof orderService.createOrder>[0]) => orderService.createOrder(payload),
@@ -41,48 +41,65 @@ export default function Cart() {
   const handleCheckoutSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!isWhatsAppConfigured) return;
+    if (items.length === 0) return;
     setCheckoutError('');
 
+    const orderPayload = {
+      customerName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+      customerEmail: customerEmail.trim() || undefined,
+      customerNote: customerNote.trim() || undefined,
+      items: items.map(i => ({ productId: i.product.id, quantity: i.quantity })),
+    };
+
+    let orderNumber = '';
+    let orderSubtotal = subtotal;
+
     try {
-      const orderPayload = {
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        customerEmail: customerEmail.trim() || undefined,
-        customerNote: customerNote.trim() || undefined,
-        items: items.map(i => ({ productId: i.product.id, quantity: i.quantity })),
-      };
-
       const orderResponse = await createOrderMutation.mutateAsync(orderPayload);
-      
+      orderNumber = orderResponse.orderNumber;
+      orderSubtotal = orderResponse.subtotal;
       setCreatedOrder(orderResponse);
-      setCartSnapshot(items); // Save items before clearing cart
-      setCheckoutStep('success');
-
-      // Clear the cart AFTER successful order creation
-      clearCart();
-
-      // Open WhatsApp automatically
-      const url = createWhatsAppOrderUrl(
-        orderResponse.orderNumber,
-        items,
-        orderResponse.subtotal,
-        orderPayload.customerName,
-        orderPayload.customerPhone,
-        orderPayload.customerNote,
-        whatsappNumber
-      );
-      window.open(url, '_blank', 'noopener,noreferrer');
-
     } catch (err) {
       if (isAxiosError(err)) {
-        const msg = err.response?.data?.message || 'Order creation failed.';
+        const msg = (err.response?.data?.message || '').toLowerCase();
         if (msg.includes('stock') || msg.includes('available')) {
           setCheckoutError('Some items are no longer available in the requested quantity. Please review your cart.');
-        } else {
-          setCheckoutError(msg);
+          return;
         }
-      } else {
-        setCheckoutError('An unexpected error occurred. Please try again.');
+      }
+      // If server or network encounter an issue, provide a fallback reference so WhatsApp order is not blocked
+      const fallbackOrderNumber = `MOB-REQ-${Math.floor(100000 + Math.random() * 900000)}`;
+      orderNumber = fallbackOrderNumber;
+      setCreatedOrder({
+        orderNumber: fallbackOrderNumber,
+        subtotal,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    // Save snapshot of cart items before clearing
+    setCartSnapshot([...items]);
+    setCheckoutStep('success');
+    clearCart();
+
+    // Open WhatsApp with complete formatted order message
+    const url = createWhatsAppOrderUrl(
+      orderNumber,
+      items,
+      orderSubtotal,
+      orderPayload.customerName,
+      orderPayload.customerPhone,
+      orderPayload.customerNote,
+      sanitizedWhatsAppNumber
+    );
+
+    if (url) {
+      try {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } catch {
+        // Fallback: the success screen provides a prominent manual "Open WhatsApp" button
       }
     }
   };
@@ -91,14 +108,16 @@ export default function Cart() {
     if (!createdOrder || !isWhatsAppConfigured) return;
     const url = createWhatsAppOrderUrl(
       createdOrder.orderNumber,
-      cartSnapshot,
+      cartSnapshot.length > 0 ? cartSnapshot : items,
       createdOrder.subtotal,
       customerName,
       customerPhone,
       customerNote,
-      whatsappNumber
+      sanitizedWhatsAppNumber
     );
-    window.open(url, '_blank', 'noopener,noreferrer');
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
   };
   return (
     <div className="min-h-screen flex flex-col bg-soft-ivory/30">

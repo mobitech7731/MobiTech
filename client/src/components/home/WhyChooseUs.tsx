@@ -11,21 +11,21 @@ interface BenefitStat {
 const stats: BenefitStat[] = [
   {
     id: 'verified',
-    iconSrc: '/images/why-choose-us/icon-verified-hd.png',
+    iconSrc: '/images/why-choose-us/icon-verified-hd.webp',
     number: '70%',
     title: 'Verified Performance',
     description: 'are defected hardware',
   },
   {
     id: 'materials',
-    iconSrc: '/images/why-choose-us/icon-materials-hd.png',
+    iconSrc: '/images/why-choose-us/icon-materials-hd.webp',
     number: '50%',
     title: 'Materials Sourced',
     description: 'and tarla diadtics',
   },
   {
     id: 'sustainable',
-    iconSrc: '/images/why-choose-us/icon-sustainable-hd.png',
+    iconSrc: '/images/why-choose-us/icon-sustainable-hd.webp',
     number: '41%',
     title: 'Sustainably Designed',
     description: 'sevice in hight',
@@ -61,8 +61,11 @@ export function WhyChooseUs() {
                   <img
                     src={stat.iconSrc}
                     alt={stat.title}
+                    width={120}
+                    height={120}
                     className="w-6 h-6 sm:w-14 sm:h-14 md:w-16 md:h-16 object-contain"
                     loading="lazy"
+                    decoding="async"
                   />
                 </div>
 

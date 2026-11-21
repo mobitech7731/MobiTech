@@ -1,4 +1,3 @@
-import { Heart } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { formatPrice } from '../../utils/formatCurrency';
 import { Link } from 'react-router-dom';
@@ -15,16 +14,6 @@ export function ProductCard({ product, layoutMode = 'standard' }: ProductCardPro
 
   return (
     <Card className={`flex flex-col relative group overflow-hidden bg-gradient-to-b from-white to-soft-ivory/30 border border-primary-dark-teal/5 h-full ${isCompact ? 'rounded-[12px] sm:rounded-[20px]' : 'rounded-[16px] sm:rounded-[20px]'} shadow-sm hover:shadow-lg hover:shadow-primary-dark-teal/5 hover:-translate-y-1 hover:border-primary-dark-teal/20 transition-all duration-300 ease-out`}>
-      
-      {/* Wishlist Button */}
-      <div className={`absolute ${isCompact ? 'top-2 right-2 sm:top-3 sm:right-3' : 'top-3 right-3'} z-20`}>
-        <button 
-          aria-label="Add to wishlist" 
-          className={`${isCompact ? 'w-6 h-6 sm:w-8 sm:h-8' : 'w-7 h-7 sm:w-8 sm:h-8'} rounded-full bg-white/80 backdrop-blur-md border border-light-neutral/50 flex items-center justify-center text-primary-dark-teal transition-all duration-200 hover:bg-primary-dark-teal/10 hover:border-primary-dark-teal/30 hover:shadow-sm group/heart`}
-        >
-          <Heart className={`${isCompact ? 'w-3 h-3 sm:w-4 sm:h-4' : 'w-3.5 h-3.5 sm:w-4 sm:h-4'} transition-transform duration-200 group-hover/heart:scale-110`} strokeWidth={2} />
-        </button>
-      </div>
 
       {/* Stock Badge - hide on small mobile to save space if compact */}
       <div className={`absolute ${isCompact ? 'top-2 left-2 sm:top-4 sm:left-4 hidden sm:block' : 'top-3 left-3 sm:top-4 sm:left-4'} z-20`}>
@@ -40,8 +29,11 @@ export function ProductCard({ product, layoutMode = 'standard' }: ProductCardPro
         <img 
           src={product.image} 
           alt={product.name}
+          width={300}
+          height={300}
           className="w-full h-full object-contain transition-transform duration-500 ease-out group-hover:scale-[1.03] mix-blend-multiply relative z-10"
           loading="lazy"
+          decoding="async"
         />
       </Link>
 

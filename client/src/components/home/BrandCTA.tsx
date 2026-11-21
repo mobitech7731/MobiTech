@@ -48,8 +48,11 @@ export function BrandCTA() {
               <img 
                 src="/images/brand-cta-placeholder.svg" 
                 alt="Premium Mobitech accessories collection"
+                width={600}
+                height={400}
                 className="w-full h-full object-contain transition-transform duration-700 hover:scale-105"
                 loading="lazy"
+                decoding="async"
               />
             </div>
           </div>
